@@ -1,0 +1,18 @@
+{
+  "appId": "com.gieo.crm",
+  "productName": "GIEO",
+  "directories": {
+    "buildResources": "build"
+  },
+  "files": ["out/**/*"],
+  "mac": {
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.business"
+  },
+  "win": {
+    "target": ["nsis"]
+  },
+  "linux": {
+    "target": ["AppImage"]
+  }
+}
