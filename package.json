@@ -13,8 +13,8 @@
     "pack:mac": "npm run build && electron-builder --mac dmg",
     "pack:win": "npm run build && electron-builder --win zip",
     "pack:all": "npm run build && electron-builder --mac dmg --win zip",
-    "release": "npm run build && electron-builder --mac dmg",
-    "release:mac": "npm run build && electron-builder --mac dmg --arm64 --x64",
+    "release": "npm run build && electron-builder --mac dmg --publish never",
+    "release:mac": "npm run build && electron-builder --mac dmg --arm64 --x64 --publish never",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
