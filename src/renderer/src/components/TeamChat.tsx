@@ -6,6 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { useStore } from '@/store/useStore'
 import { supabase } from '@/lib/supabase'
+import { getProfileById } from '@/lib/auth'
+import { mapDbMessage } from '@/lib/messages'
 import { formatRelativeTime } from '@/lib/utils'
 import type { Message } from '@/lib/types'
 
@@ -30,11 +32,13 @@ export function TeamChat(): JSX.Element {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMsg = payload.new as Message
-          addMessage({
-            ...newMsg,
-            profile: profile ?? undefined
-          })
+          const row = payload.new as Message
+          addMessage(
+            mapDbMessage({
+              ...row,
+              profiles: getProfileById(row.user_id) ?? null
+            })
+          )
         }
       )
       .subscribe()
@@ -42,7 +46,7 @@ export function TeamChat(): JSX.Element {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [addMessage, profile])
+  }, [addMessage])
 
   const handleSend = async (): Promise<void> => {
     const trimmed = input.trim()
@@ -64,6 +68,7 @@ export function TeamChat(): JSX.Element {
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-zinc-200" />
           <span className="text-sm font-medium">Team Comms</span>
+          <Badge variant="secondary" className="text-[10px]">Live · all users</Badge>
         </div>
         <div className="flex gap-1">
           <Button
@@ -101,7 +106,7 @@ export function TeamChat(): JSX.Element {
       <ScrollArea className="flex-1 px-4">
         <div className="space-y-3 py-4">
           {filteredMessages.length === 0 ? (
-            <p className="text-center text-sm text-zinc-500 py-8">No messages yet. Start the conversation.</p>
+            <p className="text-center text-sm text-zinc-500 py-8">No messages yet. Start the conversation — all team members will see it.</p>
           ) : (
             filteredMessages.map((msg) =>
               msg.message_type === 'system' ? (
@@ -118,6 +123,9 @@ export function TeamChat(): JSX.Element {
                     </div>
                     <span className="text-xs font-medium text-zinc-300">
                       {msg.profile?.name ?? 'Team Member'}
+                      {msg.user_id === profile?.id && (
+                        <span className="text-zinc-600 ml-1">(you)</span>
+                      )}
                     </span>
                     <span className="text-[10px] text-zinc-600">
                       {formatRelativeTime(msg.created_at)}

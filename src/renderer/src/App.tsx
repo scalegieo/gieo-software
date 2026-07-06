@@ -7,6 +7,9 @@ import { Clients } from '@/pages/Clients'
 import { CompletionCelebration } from '@/components/CompletionCelebration'
 import { TeamPerformance } from '@/pages/TeamPerformance'
 import { LeadSheet } from '@/pages/LeadSheet'
+import { Whiteboard } from '@/pages/Whiteboard'
+import { Tasks } from '@/pages/Tasks'
+import { CalendarPage } from '@/pages/Calendar'
 import { Login } from '@/pages/Login'
 import { useStore } from '@/store/useStore'
 import { Loader2 } from 'lucide-react'
@@ -17,9 +20,6 @@ function AppRoutes(): JSX.Element {
 
   useEffect(() => {
     void initialize()
-    if (window.gieo?.bootstrapOllama) {
-      void window.gieo.bootstrapOllama()
-    }
   }, [initialize])
 
   if (isLoading) {
@@ -44,9 +44,12 @@ function AppRoutes(): JSX.Element {
       <Routes>
         <Route element={<GieoShell />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/crm" element={<CRM />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/leads" element={<LeadSheet />} />
+          <Route path="/whiteboard" element={<Whiteboard />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/team" element={<TeamPerformance />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

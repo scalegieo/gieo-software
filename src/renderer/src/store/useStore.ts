@@ -1,162 +1,33 @@
 import { create } from 'zustand'
 import type {
   Profile, Lead, Client, Campaign, Task, Message, Financial,
-  ClientProfile, ScrapedLead, TeamMemberMetrics, CelebrationState, LeadStage
+  ClientProfile, ScrapedLead, TeamMemberMetrics, CelebrationState, LeadStage,
+  TaskPriority, WhiteboardItem, WhiteboardConnection
 } from '@/lib/types'
-import { DEFAULT_ONBOARDING, DEFAULT_CLOSE_CHECKLIST } from '@/lib/types'
+import { DEFAULT_ONBOARDING, DEFAULT_CLOSE_CHECKLIST, formatCurrency } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
-import { validateCredentials, saveSession, loadSession, clearSession, GIEO_USERS } from '@/lib/auth'
+import { validateCredentials, saveSession, loadSession, clearSession, GIEO_USERS, getProfileById } from '@/lib/auth'
+import { mapDbMessage } from '@/lib/messages'
 import { loadClientProfiles, saveClientProfiles, getOrCreateProfile } from '@/lib/clientProfiles'
 import { loadScrapedLeads, saveScrapedLeads } from '@/lib/scrapedLeads'
-import { loadTeamMetrics, saveTeamMetrics, seedDemoMetrics } from '@/lib/teamMetrics'
+import {
+  loadWhiteboardItems,
+  saveWhiteboardItems,
+  loadWhiteboardConnections,
+  saveWhiteboardConnections
+} from '@/lib/whiteboardStorage'
+import { loadTeamMetrics, saveTeamMetrics } from '@/lib/teamMetrics'
 import { showDesktopNotification } from '@/lib/notifications'
 import { parseLeadSheetCsv } from '@/lib/googleSheet'
-
-const DEMO_LEADS: Lead[] = [
-  {
-    id: 'lead-1',
-    name: 'Sarah Chen',
-    company: 'NovaTech SaaS',
-    stage: 'new',
-    value: 850000,
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString()
-  },
-  {
-    id: 'lead-2',
-    name: 'Marcus Webb',
-    company: 'Bloom Wellness',
-    stage: 'contacted',
-    value: 1200000,
-    created_at: new Date(Date.now() - 86400000 * 5).toISOString()
-  },
-  {
-    id: 'lead-3',
-    name: 'Elena Vasquez',
-    company: 'Peak Outdoors',
-    stage: 'meeting',
-    value: 650000,
-    created_at: new Date(Date.now() - 86400000 * 7).toISOString()
-  },
-  {
-    id: 'lead-4',
-    name: 'James Okonkwo',
-    company: 'FinFlow Pro',
-    stage: 'won',
-    value: 2400000,
-    created_at: new Date(Date.now() - 86400000 * 14).toISOString(),
-    onboarding_checklist: DEFAULT_ONBOARDING.map((item, i) => ({
-      ...item,
-      id: `ob-lead-4-${i}`,
-      completed: i < 3
-    }))
-  },
-  {
-    id: 'lead-5',
-    name: 'Priya Sharma',
-    company: 'CloudKitchen Co',
-    stage: 'lost',
-    value: 450000,
-    created_at: new Date(Date.now() - 86400000 * 10).toISOString()
-  }
-]
-
-const DEMO_CLIENTS: Client[] = [
-  { id: 'client-1', lead_id: 'lead-4', mrr: 2400000, status: 'active', name: 'James Okonkwo', company: 'FinFlow Pro' },
-  { id: 'client-2', lead_id: null, mrr: 1800000, status: 'active', name: 'Luxe Beauty', company: 'Luxe Beauty Inc' },
-  { id: 'client-3', lead_id: null, mrr: 950000, status: 'active', name: 'UrbanFit', company: 'UrbanFit Gym' },
-  { id: 'client-4', lead_id: null, mrr: 3200000, status: 'active', name: 'DataPulse', company: 'DataPulse Analytics' }
-]
-
-const DEMO_CAMPAIGNS: Campaign[] = [
-  { id: 'camp-1', client_id: 'client-1', ad_url: 'https://facebook.com/ads/123', spend: 450000, roas: 3.2, status: 'approved' },
-  { id: 'camp-2', client_id: 'client-1', ad_url: 'https://facebook.com/ads/124', spend: 280000, roas: 2.8, status: 'pending' },
-  { id: 'camp-3', client_id: 'client-2', ad_url: 'https://facebook.com/ads/201', spend: 620000, roas: 4.1, status: 'approved' },
-  { id: 'camp-4', client_id: 'client-3', ad_url: 'https://facebook.com/ads/301', spend: 190000, roas: 1.9, status: 'revision' }
-]
-
-const DEMO_TASKS: Task[] = [
-  { id: 'task-1', assignee_id: 'a1000001-0000-4000-8000-000000000001', client_id: 'client-1', title: 'Review Q2 creative brief', due_date: new Date(Date.now() + 86400000).toISOString(), status: 'in_progress' },
-  { id: 'task-2', assignee_id: 'a1000002-0000-4000-8000-000000000002', client_id: 'client-2', title: 'Update Meta pixel events', due_date: new Date(Date.now() + 86400000 * 3).toISOString(), status: 'todo' },
-  { id: 'task-3', assignee_id: 'a1000003-0000-4000-8000-000000000003', client_id: 'client-3', title: 'Send monthly performance report', due_date: new Date(Date.now() - 86400000).toISOString(), status: 'overdue' },
-  { id: 'task-4', assignee_id: 'a1000004-0000-4000-8000-000000000004', client_id: 'client-4', title: 'Launch retargeting campaign', due_date: new Date(Date.now() + 86400000 * 7).toISOString(), status: 'todo' }
-]
-
-const DEMO_FINANCIALS: Financial[] = [
-  { id: 'fin-1', client_id: 'client-1', invoice_path: 'Active/finflow-pro/invoice-q2.pdf', amount: 2400000, status: 'paid' },
-  { id: 'fin-2', client_id: 'client-2', invoice_path: 'Active/luxe-beauty/invoice-june.pdf', amount: 1800000, status: 'pending' },
-  { id: 'fin-3', client_id: 'client-3', invoice_path: 'Active/urbanfit/invoice-june.pdf', amount: 950000, status: 'paid' }
-]
-
-function buildDemoClientProfiles(): Record<string, ClientProfile> {
-  const stored = loadClientProfiles()
-  const seeds: Record<string, Partial<ClientProfile>> = {
-    'client-1': {
-      primary_contact: 'James Okonkwo',
-      email: 'james@finflow.pro',
-      phone: '+1 415 555 0101',
-      industry: 'FinTech / SaaS',
-      services: ['Meta Ads Management', 'Analytics & Reporting'],
-      contract_start: new Date(Date.now() - 86400000 * 90).toISOString(),
-      retainer_notes: '$24k/mo — Meta + Google, weekly reporting',
-      meeting_notes: [{
-        id: 'mtg-demo-1',
-        date: new Date(Date.now() - 86400000 * 7).toISOString(),
-        title: 'Q2 Strategy Review',
-        notes: 'Approved new UGC creative direction. Scaling budget 15% next month.',
-        attendees: 'James, Reda, Yoni'
-      }],
-      call_logs: [{
-        id: 'call-demo-1',
-        date: new Date(Date.now() - 86400000 * 3).toISOString(),
-        duration_minutes: 22,
-        notes: 'Checked in on ROAS — client happy with 3.2x average.',
-        outcome: 'connected'
-      }]
-    },
-    'client-2': {
-      primary_contact: 'Maria Luxe',
-      email: 'maria@luxebeauty.com',
-      phone: '+1 212 555 0188',
-      industry: 'Beauty / DTC',
-      services: ['Meta Ads Management', 'Creative Production', 'Email Marketing']
-    },
-    'client-3': {
-      primary_contact: 'Tom Richards',
-      email: 'tom@urbanfit.com',
-      industry: 'Fitness',
-      services: ['Meta Ads Management', 'Landing Page / CRO']
-    },
-    'client-4': {
-      primary_contact: 'Anita Park',
-      email: 'anita@datapulse.io',
-      industry: 'B2B SaaS',
-      services: ['Google Ads', 'SEO / Content', 'Analytics & Reporting']
-    }
-  }
-
-  const merged: Record<string, ClientProfile> = { ...stored }
-  for (const [clientId, seed] of Object.entries(seeds)) {
-    if (!merged[clientId]) {
-      merged[clientId] = getOrCreateProfile(merged, clientId, seed)
-    }
-  }
-  saveClientProfiles(merged)
-  return merged
-}
-
-function buildDemoMessages(profile: Profile): Message[] {
-  return [
-    { id: 'msg-1', user_id: profile.id, content: 'FinFlow creative approved — launching tomorrow', created_at: new Date(Date.now() - 3600000).toISOString(), profile },
-    { id: 'msg-2', user_id: 'a1000002-0000-4000-8000-000000000002', content: 'UrbanFit ROAS dipped to 1.9x — need to refresh ad sets', created_at: new Date(Date.now() - 7200000).toISOString(), profile: { id: 'a1000002-0000-4000-8000-000000000002', role: 'media_buyer', name: 'Yoni' } },
-    { id: 'msg-3', user_id: 'a1000003-0000-4000-8000-000000000003', content: 'New lead from referral: CloudKitchen Co — high intent', created_at: new Date(Date.now() - 14400000).toISOString(), profile: { id: 'a1000003-0000-4000-8000-000000000003', role: 'sales', name: 'Yeab' } }
-  ]
-}
+import { syncClientProfilesFromRemote, upsertClientProfileRemote } from '@/lib/clientProfilesSync'
+import { getUpcomingBillings, getAgencyHoursThisMonth, getAgencyTotalHours, type BillingReminder } from '@/lib/retainerBilling'
+import { normalizeClientProfile } from '@/lib/clientProfiles'
 
 interface GieoStore {
   profile: Profile | null
   isAuthenticated: boolean
   isLoading: boolean
-  isUsingLocalData: boolean
+  connectionError: string | null
 
   leads: Lead[]
   clients: Client[]
@@ -168,14 +39,22 @@ interface GieoStore {
   scrapedLeads: ScrapedLead[]
   teamMetrics: Record<string, TeamMemberMetrics>
   celebration: CelebrationState | null
+  whiteboardItems: WhiteboardItem[]
+  whiteboardConnections: WhiteboardConnection[]
 
   activeClientId: string | null
   chatOpen: boolean
   aiSidebarOpen: boolean
+  commandBarOpen: boolean
+  ebonicsFocusTick: number
+  ebonicsPendingSend: string | null
   activeTaskId: string | null
 
   setChatOpen: (open: boolean) => void
   setAiSidebarOpen: (open: boolean) => void
+  setCommandBarOpen: (open: boolean) => void
+  setEbonicsPendingSend: (msg: string | null) => void
+  focusEbonics: () => void
   setActiveClient: (id: string | null) => void
   setActiveTask: (id: string | null) => void
   dismissCelebration: () => void
@@ -197,8 +76,19 @@ interface GieoStore {
   sendMessage: (content: string, taskId?: string | null) => Promise<void>
   addMessage: (message: Message) => void
   postSystemMessage: (content: string, notify?: boolean) => void
+  syncStripePayments: () => Promise<{ error?: string; count?: number }>
+  createStripePaymentLink: (clientId: string) => Promise<{ url?: string; error?: string }>
 
   updateTaskStatus: (taskId: string, status: string) => Promise<void>
+  createTask: (input: {
+    title: string
+    assignee_id?: string | null
+    client_id?: string | null
+    priority?: TaskPriority
+    due_date?: string | null
+    status?: string
+  }) => Promise<{ error?: string; taskId?: string }>
+  getPendingTaskCount: () => number
   addClient: (input: {
     company: string
     name: string
@@ -221,9 +111,26 @@ interface GieoStore {
 
   incrementTeamMetric: (userId: string, metric: keyof TeamMemberMetrics, amount?: number) => void
 
+  fetchWhiteboard: () => Promise<void>
+  addWhiteboardNote: (x: number, y: number, content?: string) => void
+  updateWhiteboardItem: (id: string, updates: Partial<WhiteboardItem>) => void
+  deleteWhiteboardItem: (id: string) => void
+  addWhiteboardConnection: (
+    fromId: string,
+    toId: string,
+    fromAnchor: WhiteboardConnection['from_anchor'],
+    toAnchor: WhiteboardConnection['to_anchor']
+  ) => void
+  deleteWhiteboardConnection: (id: string) => void
+  subscribeWhiteboard: () => () => void
+
   getTotalMRR: () => number
   getTotalAdSpend: () => number
   getActiveClientCount: () => number
+  getTotalClientCount: () => number
+  getAgencyHoursThisMonth: () => number
+  getAgencyTotalHours: () => number
+  getUpcomingBillingReminders: (withinDays?: number) => BillingReminder[]
 }
 
 export type { GieoStore }
@@ -232,7 +139,7 @@ export const useStore = create<GieoStore>((set, get) => ({
   profile: null,
   isAuthenticated: false,
   isLoading: true,
-  isUsingLocalData: false,
+  connectionError: null,
 
   leads: [],
   clients: [],
@@ -242,30 +149,60 @@ export const useStore = create<GieoStore>((set, get) => ({
   messages: [],
   clientProfiles: loadClientProfiles(),
   scrapedLeads: loadScrapedLeads(),
-  teamMetrics: { ...loadTeamMetrics(), ...seedDemoMetrics() },
+  teamMetrics: loadTeamMetrics(),
   celebration: null,
+  whiteboardItems: loadWhiteboardItems(),
+  whiteboardConnections: loadWhiteboardConnections(),
 
   activeClientId: null,
   chatOpen: false,
   aiSidebarOpen: false,
+  commandBarOpen: false,
+  ebonicsFocusTick: 0,
+  ebonicsPendingSend: null,
   activeTaskId: null,
 
   setChatOpen: (open) => set({ chatOpen: open }),
   setAiSidebarOpen: (open) => set({ aiSidebarOpen: open }),
+  setCommandBarOpen: (open) => set({ commandBarOpen: open }),
+  setEbonicsPendingSend: (msg) => set({ ebonicsPendingSend: msg }),
+  focusEbonics: () => set({ ebonicsFocusTick: get().ebonicsFocusTick + 1 }),
   setActiveClient: (id) => set({ activeClientId: id }),
   setActiveTask: (id) => set({ activeTaskId: id }),
   dismissCelebration: () => set({ celebration: null }),
 
   postSystemMessage: (content, notify = true) => {
-    const msg: Message = {
+    const profile = get().profile
+    const userId = profile?.id ?? GIEO_USERS[0].profile.id
+    const optimistic: Message = {
       id: `sys-${Date.now()}`,
-      user_id: 'system',
+      user_id: userId,
       content,
       created_at: new Date().toISOString(),
-      message_type: 'system'
+      message_type: 'system',
+      profile: profile ?? undefined
     }
-    set({ messages: [...get().messages, msg], chatOpen: true })
+    set({ messages: [...get().messages, optimistic], chatOpen: true })
     if (notify) showDesktopNotification('GIEO', content)
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({ user_id: userId, content, message_type: 'system' })
+        .select('*, profiles(id, role, name)')
+        .single()
+
+      if (error) {
+        console.error('[GIEO] system message insert failed:', error.message)
+        return
+      }
+      if (data) {
+        const mapped = mapDbMessage(data as Message & { profiles?: Profile | null })
+        set({
+          messages: get().messages.map((m) => (m.id === optimistic.id ? mapped : m))
+        })
+      }
+    })()
   },
 
   initialize: async () => {
@@ -275,8 +212,7 @@ export const useStore = create<GieoStore>((set, get) => ({
       if (session) {
         set({
           profile: session.profile,
-          isAuthenticated: true,
-          messages: buildDemoMessages(session.profile)
+          isAuthenticated: true
         })
         await get().fetchAllData()
       }
@@ -296,8 +232,7 @@ export const useStore = create<GieoStore>((set, get) => ({
       saveSession(user.username)
       set({
         profile: user.profile,
-        isAuthenticated: true,
-        messages: buildDemoMessages(user.profile)
+        isAuthenticated: true
       })
 
       await get().fetchAllData()
@@ -312,7 +247,7 @@ export const useStore = create<GieoStore>((set, get) => ({
     set({
       profile: null,
       isAuthenticated: false,
-      isUsingLocalData: false,
+      connectionError: null,
       leads: [],
       clients: [],
       campaigns: [],
@@ -322,50 +257,42 @@ export const useStore = create<GieoStore>((set, get) => ({
       activeClientId: null,
       activeTaskId: null,
       chatOpen: false,
-      aiSidebarOpen: false
+      aiSidebarOpen: false,
+      commandBarOpen: false,
+      ebonicsPendingSend: null,
+      whiteboardItems: [],
+      whiteboardConnections: []
     })
   },
 
   fetchAllData: async () => {
+    set({ connectionError: null })
+
     await Promise.all([
       get().fetchLeads(),
       get().fetchClients(),
       get().fetchCampaigns(),
       get().fetchTasks(),
       get().fetchFinancials(),
-      get().fetchMessages()
+      get().fetchMessages(),
+      get().fetchWhiteboard()
     ])
 
     const state = get()
-    const usingLocal =
-      state.leads.length === 0 ||
-      state.clients.length === 0
-
-    if (usingLocal) {
-      const profile = state.profile!
-      const demoProfiles = buildDemoClientProfiles()
-      set({
-        isUsingLocalData: true,
-        leads: state.leads.length ? state.leads : DEMO_LEADS,
-        clients: state.clients.length ? state.clients : DEMO_CLIENTS,
-        campaigns: state.campaigns.length ? state.campaigns : DEMO_CAMPAIGNS,
-        tasks: state.tasks.length ? state.tasks : DEMO_TASKS,
-        financials: state.financials.length ? state.financials : DEMO_FINANCIALS,
-        messages: state.messages.length ? state.messages : buildDemoMessages(profile),
-        clientProfiles: { ...demoProfiles, ...state.clientProfiles },
-        scrapedLeads: state.scrapedLeads.length ? state.scrapedLeads : loadScrapedLeads(),
-        teamMetrics: { ...seedDemoMetrics(), ...state.teamMetrics }
-      })
-    } else {
-      set({ isUsingLocalData: false })
-    }
+    const mergedProfiles = await syncClientProfilesFromRemote(state.clients)
+    set({ clientProfiles: mergedProfiles })
 
     get().ensureClientProfiles()
   },
 
   fetchLeads: async () => {
     const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false })
-    if (!error && data?.length) set({ leads: data as Lead[] })
+    if (error) {
+      console.error('[GIEO] fetchLeads:', error.message)
+      set({ connectionError: error.message })
+      return
+    }
+    set({ leads: (data ?? []) as Lead[] })
   },
 
   updateLeadStage: async (leadId, stage) => {
@@ -396,9 +323,7 @@ export const useStore = create<GieoStore>((set, get) => ({
     }
 
     const { error } = await supabase.from('leads').update({ stage }).eq('id', leadId)
-    if (error && get().isUsingLocalData) {
-      // skip
-    }
+    if (error) console.error('[GIEO] updateLeadStage:', error.message)
   },
 
   toggleOnboardingItem: (leadId, itemId) => {
@@ -416,34 +341,59 @@ export const useStore = create<GieoStore>((set, get) => ({
   },
 
   fetchClients: async () => {
-    const { data, error } = await supabase.from('clients').select('*')
-    if (!error && data?.length) set({ clients: data as Client[] })
+    const { data, error } = await supabase.from('clients').select('*').order('created_at', { ascending: false })
+    if (error) {
+      console.error('[GIEO] fetchClients:', error.message)
+      set({ connectionError: error.message })
+      return
+    }
+    set({ clients: (data ?? []) as Client[] })
   },
 
   fetchCampaigns: async () => {
     const { data, error } = await supabase.from('campaigns').select('*')
-    if (!error && data?.length) set({ campaigns: data as Campaign[] })
+    if (error) {
+      console.error('[GIEO] fetchCampaigns:', error.message)
+      set({ connectionError: error.message })
+      return
+    }
+    set({ campaigns: (data ?? []) as Campaign[] })
   },
 
   fetchTasks: async () => {
     const { data, error } = await supabase.from('tasks').select('*').order('due_date', { ascending: true })
-    if (!error && data?.length) set({ tasks: data as Task[] })
+    if (error) {
+      console.error('[GIEO] fetchTasks:', error.message)
+      set({ connectionError: error.message })
+      return
+    }
+    set({ tasks: (data ?? []) as Task[] })
   },
 
   fetchFinancials: async () => {
     const { data, error } = await supabase.from('financials').select('*')
-    if (!error && data?.length) set({ financials: data as Financial[] })
+    if (error) {
+      console.error('[GIEO] fetchFinancials:', error.message)
+      set({ connectionError: error.message })
+      return
+    }
+    set({ financials: (data ?? []) as Financial[] })
   },
 
   fetchMessages: async () => {
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select('*, profiles(id, role, name)')
       .order('created_at', { ascending: true })
-      .limit(100)
+      .limit(200)
 
-    if (!error && data?.length) {
-      set({ messages: data as Message[] })
+    if (error) {
+      console.error('[GIEO] fetchMessages failed:', error.message)
+      return
+    }
+
+    if (data?.length) {
+      set({ messages: data.map((row) => mapDbMessage(row as Message & { profiles?: Profile | null })) })
     }
   },
 
@@ -451,34 +401,70 @@ export const useStore = create<GieoStore>((set, get) => ({
     const profile = get().profile
     if (!profile) return
 
+    const tempId = `temp-${Date.now()}`
     const optimistic: Message = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       user_id: profile.id,
       content,
       created_at: new Date().toISOString(),
       task_id: taskId,
-      profile
+      profile,
+      message_type: 'user'
     }
     set({ messages: [...get().messages, optimistic] })
 
-    if (!get().isUsingLocalData) {
-      await supabase.from('messages').insert({
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
         user_id: profile.id,
         content,
-        task_id: taskId
+        task_id: taskId,
+        message_type: 'user'
+      })
+      .select('*, profiles(id, role, name)')
+      .single()
+
+    if (error) {
+      console.error('[GIEO] sendMessage failed:', error.message)
+      return
+    }
+
+    if (data) {
+      const mapped = mapDbMessage(data as Message & { profiles?: Profile | null })
+      set({
+        messages: get()
+          .messages.filter((m) => m.id !== tempId && m.id !== mapped.id)
+          .concat(mapped)
       })
     }
   },
 
   addMessage: (message) => {
-    const exists = get().messages.some((m) => m.id === message.id)
-    if (!exists) {
-      set({ messages: [...get().messages, message] })
+    const mapped = mapDbMessage(message as Message & { profiles?: Profile | null })
+    if (get().messages.some((m) => m.id === mapped.id)) return
+
+    const tempDup = get().messages.find(
+      (m) =>
+        m.id.startsWith('temp-') &&
+        m.content === mapped.content &&
+        m.user_id === mapped.user_id &&
+        (m.task_id ?? null) === (mapped.task_id ?? null)
+    )
+
+    if (tempDup) {
+      set({
+        messages: get()
+          .messages.filter((m) => m.id !== tempDup.id)
+          .concat(mapped)
+      })
+      return
     }
+
+    set({ messages: [...get().messages, mapped] })
   },
 
   addClient: async (input) => {
-    const clientId = `client-${Date.now()}`
+    const clientId = crypto.randomUUID()
     const newClient: Client = {
       id: clientId,
       lead_id: null,
@@ -495,7 +481,7 @@ export const useStore = create<GieoStore>((set, get) => ({
       phone: input.phone ?? '',
       services: input.services ?? [],
       contract_start: new Date().toISOString()
-    })
+    }, input.mrr)
 
     set({
       clients: [newClient, ...get().clients],
@@ -503,28 +489,42 @@ export const useStore = create<GieoStore>((set, get) => ({
     })
     saveClientProfiles(get().clientProfiles)
 
-    if (!get().isUsingLocalData) {
-      const { error } = await supabase.from('clients').insert({
-        id: clientId,
-        lead_id: null,
-        mrr: input.mrr,
-        status: 'active'
+    const { error } = await supabase.from('clients').insert({
+      id: clientId,
+      lead_id: null,
+      mrr: input.mrr,
+      status: 'active',
+      name: input.name,
+      company: input.company
+    })
+    if (error) {
+      set({
+        clients: get().clients.filter((c) => c.id !== clientId),
+        clientProfiles: Object.fromEntries(
+          Object.entries(get().clientProfiles).filter(([id]) => id !== clientId)
+        )
       })
-      if (error) return { error: error.message }
+      return { error: error.message }
     }
+
+    void upsertClientProfileRemote(clientId, newProfile)
+    get().postSystemMessage(
+      `${get().profile?.name ?? 'Team'} added client ${input.company} (${formatCurrency(input.mrr)}/mo MRR)`
+    )
 
     return { clientId }
   },
 
   getClientProfile: (clientId) => {
     const profiles = get().clientProfiles
-    if (profiles[clientId]) return profiles[clientId]
     const client = get().clients.find((c) => c.id === clientId)
+    const mrr = client?.mrr ?? 0
+    if (profiles[clientId]) return normalizeClientProfile(profiles[clientId], mrr)
     const created = getOrCreateProfile(profiles, clientId, {
       primary_contact: client?.name ?? '',
       email: '',
       phone: ''
-    })
+    }, mrr)
     const next = { ...profiles, [clientId]: created }
     set({ clientProfiles: next })
     saveClientProfiles(next)
@@ -532,10 +532,15 @@ export const useStore = create<GieoStore>((set, get) => ({
   },
 
   updateClientProfile: (clientId, profile) => {
-    const updated = { ...profile, client_id: clientId, updated_at: new Date().toISOString() }
+    const client = get().clients.find((c) => c.id === clientId)
+    const updated = normalizeClientProfile(
+      { ...profile, client_id: clientId, updated_at: new Date().toISOString() },
+      client?.mrr ?? 0
+    )
     const next = { ...get().clientProfiles, [clientId]: updated }
     set({ clientProfiles: next })
     saveClientProfiles(next)
+    void upsertClientProfileRemote(clientId, updated)
   },
 
   ensureClientProfiles: () => {
@@ -548,7 +553,7 @@ export const useStore = create<GieoStore>((set, get) => ({
           primary_contact: client.name ?? '',
           email: '',
           phone: ''
-        })
+        }, client.mrr)
         changed = true
       }
       const p = profiles[client.id]
@@ -559,6 +564,11 @@ export const useStore = create<GieoStore>((set, get) => ({
     if (changed) {
       set({ clientProfiles: profiles })
       saveClientProfiles(profiles)
+      for (const client of clients) {
+        if (profiles[client.id]) {
+          void upsertClientProfileRemote(client.id, profiles[client.id])
+        }
+      }
     }
   },
 
@@ -583,9 +593,61 @@ export const useStore = create<GieoStore>((set, get) => ({
       }
     }
 
-    if (!get().isUsingLocalData) {
-      await supabase.from('tasks').update({ status }).eq('id', taskId)
+    const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId)
+    if (error) console.error('[GIEO] updateTaskStatus:', error.message)
+  },
+
+  createTask: async (input) => {
+    const id = crypto.randomUUID()
+    const task: Task = {
+      id,
+      title: input.title,
+      assignee_id: input.assignee_id ?? null,
+      client_id: input.client_id ?? null,
+      priority: input.priority ?? 'medium',
+      due_date: input.due_date ?? null,
+      status: input.status ?? 'todo'
     }
+
+    set({ tasks: [task, ...get().tasks] })
+
+    const { error } = await supabase.from('tasks').insert({
+      id,
+      title: task.title,
+      assignee_id: task.assignee_id,
+      client_id: task.client_id,
+      due_date: task.due_date,
+      status: task.status,
+      priority: task.priority
+    })
+    if (error) {
+      set({ tasks: get().tasks.filter((t) => t.id !== id) })
+      return { error: error.message }
+    }
+
+    const assigneeName = task.assignee_id
+      ? getProfileById(task.assignee_id)?.name ?? 'Team member'
+      : 'Unassigned'
+    get().postSystemMessage(
+      `${get().profile?.name ?? 'Team'} assigned task "${task.title}" to ${assigneeName}`
+    )
+
+    if (task.assignee_id && task.assignee_id !== get().profile?.id) {
+      showDesktopNotification(
+        'New task assigned',
+        `"${task.title}" — from ${get().profile?.name ?? 'Team'}`
+      )
+    }
+
+    return { taskId: id }
+  },
+
+  getPendingTaskCount: () => {
+    const profileId = get().profile?.id
+    if (!profileId) return 0
+    return get().tasks.filter(
+      (t) => t.assignee_id === profileId && t.status !== 'done'
+    ).length
   },
 
   startClientClose: (clientId) => {
@@ -625,6 +687,7 @@ export const useStore = create<GieoStore>((set, get) => ({
         subtitle: `${client?.company ?? 'Client'} has been successfully closed out.`
       }
     })
+    void supabase.from('clients').update({ status: 'completed' }).eq('id', clientId)
     get().postSystemMessage(`${get().profile?.name ?? 'Team'} finished the project for ${client?.company ?? 'client'}`)
   },
 
@@ -723,7 +786,176 @@ export const useStore = create<GieoStore>((set, get) => ({
     saveTeamMetrics(metrics)
   },
 
+  fetchWhiteboard: async () => {
+    const local = loadWhiteboardItems()
+    if (local.length) {
+      set({ whiteboardItems: local, whiteboardConnections: loadWhiteboardConnections() })
+    }
+
+    const { data, error } = await supabase
+      .from('whiteboard_items')
+      .select('*')
+      .order('created_at', { ascending: true })
+
+    if (!error && data?.length) {
+      set({ whiteboardItems: data as WhiteboardItem[] })
+      saveWhiteboardItems(data as WhiteboardItem[])
+    }
+  },
+
+  addWhiteboardNote: (x, y, content = '') => {
+    const profile = get().profile
+    if (!profile) return
+
+    const item: WhiteboardItem = {
+      id: `wb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      user_id: profile.id,
+      type: 'note',
+      x,
+      y,
+      width: 220,
+      height: 140,
+      content,
+      color: 'amber',
+      target_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    const next = [...get().whiteboardItems, item]
+    set({ whiteboardItems: next })
+    saveWhiteboardItems(next)
+
+    void supabase.from('whiteboard_items').upsert(item)
+  },
+
+  updateWhiteboardItem: (id, updates) => {
+    const next = get().whiteboardItems.map((i) =>
+      i.id === id ? { ...i, ...updates, updated_at: new Date().toISOString() } : i
+    )
+    set({ whiteboardItems: next })
+    saveWhiteboardItems(next)
+    void supabase.from('whiteboard_items').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+  },
+
+  deleteWhiteboardItem: (id) => {
+    const next = get().whiteboardItems.filter((i) => i.id !== id)
+    const conns = get().whiteboardConnections.filter((c) => c.from_id !== id && c.to_id !== id)
+    set({ whiteboardItems: next, whiteboardConnections: conns })
+    saveWhiteboardItems(next)
+    saveWhiteboardConnections(conns)
+    void supabase.from('whiteboard_items').delete().eq('id', id)
+  },
+
+  addWhiteboardConnection: (fromId, toId, fromAnchor, toAnchor) => {
+    if (fromId === toId) return
+    const exists = get().whiteboardConnections.some(
+      (c) =>
+        (c.from_id === fromId && c.to_id === toId) || (c.from_id === toId && c.to_id === fromId)
+    )
+    if (exists) return
+
+    const conn: WhiteboardConnection = {
+      id: `conn-${Date.now()}`,
+      from_id: fromId,
+      to_id: toId,
+      from_anchor: fromAnchor,
+      to_anchor: toAnchor
+    }
+    const next = [...get().whiteboardConnections, conn]
+    set({ whiteboardConnections: next })
+    saveWhiteboardConnections(next)
+  },
+
+  deleteWhiteboardConnection: (id) => {
+    const next = get().whiteboardConnections.filter((c) => c.id !== id)
+    set({ whiteboardConnections: next })
+    saveWhiteboardConnections(next)
+  },
+
+  subscribeWhiteboard: () => {
+    const channel = supabase
+      .channel('whiteboard-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whiteboard_items' },
+        () => {
+          void get().fetchWhiteboard()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  },
+
+  syncStripePayments: async () => {
+    if (!window.gieo?.listStripeInvoices) {
+      return { error: 'Stripe unavailable in this environment' }
+    }
+
+    const result = await window.gieo.listStripeInvoices()
+    if (result.error) return { error: result.error }
+    if (!result.invoices?.length) return { count: 0 }
+
+    const clients = get().clients
+    const existing = get().financials
+    let count = 0
+
+    for (const inv of result.invoices) {
+      if (existing.some((f) => f.stripe_invoice_id === inv.id)) continue
+
+      const match = clients.find(
+        (c) =>
+          (inv.customer_email && get().getClientProfile(c.id).email === inv.customer_email) ||
+          (inv.customer_name && (c.company === inv.customer_name || c.name === inv.customer_name))
+      )
+
+      const fin: Financial = {
+        id: `stripe-${inv.id}`,
+        client_id: match?.id ?? clients[0]?.id ?? 'unassigned',
+        invoice_path: inv.hosted_invoice_url ? 'Stripe Invoice' : `Stripe ${inv.id}`,
+        amount: inv.amount_paid || inv.amount_due,
+        status: inv.status === 'paid' ? 'paid' : inv.status === 'open' ? 'pending' : inv.status ?? 'pending',
+        stripe_invoice_id: inv.id,
+        hosted_invoice_url: inv.hosted_invoice_url,
+        created_at: new Date(inv.created * 1000).toISOString()
+      }
+
+      existing.unshift(fin)
+      count++
+    }
+
+    if (count > 0) {
+      set({ financials: [...existing] })
+    }
+
+    return { count }
+  },
+
+  createStripePaymentLink: async (clientId) => {
+    if (!window.gieo?.createStripePaymentLink) {
+      return { error: 'Stripe unavailable' }
+    }
+
+    const client = get().clients.find((c) => c.id === clientId)
+    if (!client) return { error: 'Client not found' }
+
+    const profile = get().getClientProfile(clientId)
+    return window.gieo.createStripePaymentLink({
+      amountCents: client.mrr,
+      clientName: client.company ?? client.name ?? 'Client',
+      clientEmail: profile.email || undefined
+    })
+  },
+
   getTotalMRR: () => get().clients.filter((c) => c.status === 'active').reduce((sum, c) => sum + c.mrr, 0),
   getTotalAdSpend: () => get().campaigns.reduce((sum, c) => sum + c.spend, 0),
-  getActiveClientCount: () => get().clients.filter((c) => c.status === 'active').length
+  getActiveClientCount: () => get().clients.filter((c) => c.status === 'active').length,
+  getTotalClientCount: () => get().clients.length,
+  getAgencyHoursThisMonth: () => getAgencyHoursThisMonth(get().clientProfiles),
+  getAgencyTotalHours: () => getAgencyTotalHours(get().clientProfiles),
+  getUpcomingBillingReminders: (withinDays = 14) =>
+    getUpcomingBillings(get().clients, get().clientProfiles, withinDays)
 }))

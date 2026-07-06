@@ -6,9 +6,11 @@ interface GieoLogoProps {
   variant?: 'wordmark' | 'icon'
   className?: string
   iconClassName?: string
+  /** Fill parent container (sidebar header) */
+  fill?: boolean
 }
 
-export function GieoLogo({ variant = 'wordmark', className, iconClassName }: GieoLogoProps): JSX.Element {
+export function GieoLogo({ variant = 'wordmark', className, iconClassName, fill }: GieoLogoProps): JSX.Element {
   if (variant === 'icon') {
     return (
       <img
@@ -23,7 +25,10 @@ export function GieoLogo({ variant = 'wordmark', className, iconClassName }: Gie
     <img
       src={gieoWordmark}
       alt="GIEO"
-      className={cn('h-9 w-auto object-contain', className)}
+      className={cn(
+        fill ? 'h-full w-full object-contain object-left' : 'h-9 w-auto object-contain',
+        className
+      )}
     />
   )
 }

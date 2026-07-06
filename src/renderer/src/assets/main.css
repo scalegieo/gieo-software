@@ -64,4 +64,140 @@
   .gieo-label {
     @apply text-xs font-medium uppercase tracking-wider text-zinc-500;
   }
+
+  .liquid-glass-panel {
+    @apply backdrop-blur-2xl backdrop-saturate-150 border border-white/10 shadow-2xl shadow-black/40;
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.11) 0%,
+      rgba(24, 24, 27, 0.88) 42%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .liquid-glass-bar {
+    @apply backdrop-blur-2xl backdrop-saturate-150 border border-white/15 shadow-2xl shadow-black/60;
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(24, 24, 27, 0.82) 45%,
+      rgba(255, 255, 255, 0.06) 100%
+    );
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .liquid-glass-subtle {
+    @apply backdrop-blur-xl backdrop-saturate-150 border border-white/10;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(24, 24, 27, 0.78) 55%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+  }
+
+  .liquid-glass-inset {
+    @apply backdrop-blur-md border border-white/10;
+    background: rgba(0, 0, 0, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .liquid-glass-popover {
+    @apply backdrop-blur-2xl backdrop-saturate-150;
+    background: linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(24, 24, 27, 0.92) 50%,
+      rgba(39, 39, 42, 0.95) 100%
+    );
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .liquid-glass-header {
+    @apply backdrop-blur-xl backdrop-saturate-150 border-b border-white/10;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(9, 9, 11, 0.85) 100%
+    );
+  }
+
+  .liquid-glass-sidebar {
+    @apply backdrop-blur-xl backdrop-saturate-150 border-r border-white/10;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(9, 9, 11, 0.92) 100%
+    );
+  }
+
+  /* Apple Intelligence–style iridescent glow for FRIDAY quick bar */
+  .friday-intelligence-shell {
+    position: relative;
+    border-radius: 9999px;
+    padding: 2px;
+    background: linear-gradient(
+      135deg,
+      rgba(139, 92, 246, 0.9),
+      rgba(56, 189, 248, 0.85),
+      rgba(244, 114, 182, 0.8),
+      rgba(129, 140, 248, 0.9)
+    );
+    background-size: 300% 300%;
+    animation: friday-glow-shift 6s ease infinite;
+    box-shadow:
+      0 0 24px rgba(139, 92, 246, 0.35),
+      0 0 48px rgba(56, 189, 248, 0.2),
+      0 0 72px rgba(244, 114, 182, 0.12);
+  }
+
+  .friday-intelligence-shell::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    background: inherit;
+    filter: blur(18px);
+    opacity: 0.45;
+    z-index: -1;
+    animation: friday-glow-shift 6s ease infinite;
+  }
+
+  .friday-intelligence-bar {
+    @apply flex items-center gap-3 rounded-full backdrop-blur-2xl backdrop-saturate-150;
+    background: rgba(12, 12, 16, 0.82);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  @keyframes friday-glow-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes friday-bar-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .friday-intelligence-enter {
+    animation: friday-bar-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }

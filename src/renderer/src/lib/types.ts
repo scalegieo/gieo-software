@@ -48,6 +48,32 @@ export interface CallLog {
   outcome: 'connected' | 'voicemail' | 'no_answer' | 'scheduled' | 'follow_up'
 }
 
+export type TimeEntryCategory = 'strategy' | 'creative' | 'ads' | 'reporting' | 'calls' | 'other'
+
+export interface TimeEntry {
+  id: string
+  date: string
+  hours: number
+  category: TimeEntryCategory
+  billable: boolean
+  notes: string
+  team_member?: string
+}
+
+export interface RetainerSchedule {
+  enabled: boolean
+  billing_cycle: 'monthly' | 'quarterly'
+  term_months: number
+  monthly_amount_cents: number
+  reminder_days_before: number
+  contract_start: string | null
+  next_billing_date: string | null
+  last_billed_date: string | null
+  contact_frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly'
+  next_contact_date: string | null
+  auto_renew: boolean
+}
+
 export interface ClientProfile {
   client_id: string
   primary_contact: string
@@ -67,6 +93,8 @@ export interface ClientProfile {
   platform_logins: PlatformLogin[]
   project_status: 'active' | 'closing' | 'completed'
   close_checklist: OnboardingItem[]
+  retainer_schedule: RetainerSchedule
+  time_entries: TimeEntry[]
   updated_at: string
 }
 
@@ -138,7 +166,35 @@ export const CALL_OUTCOMES: { value: CallLog['outcome']; label: string }[] = [
   { value: 'follow_up', label: 'Follow-up Needed' }
 ]
 
-export function createEmptyClientProfile(clientId: string): ClientProfile {
+export const TIME_ENTRY_CATEGORIES: { value: TimeEntryCategory; label: string }[] = [
+  { value: 'strategy', label: 'Strategy' },
+  { value: 'creative', label: 'Creative' },
+  { value: 'ads', label: 'Ads / Media' },
+  { value: 'reporting', label: 'Reporting' },
+  { value: 'calls', label: 'Calls / Meetings' },
+  { value: 'other', label: 'Other' }
+]
+
+export function createDefaultRetainerSchedule(mrrCents = 0): RetainerSchedule {
+  const next = new Date()
+  next.setMonth(next.getMonth() + 1)
+  next.setDate(1)
+  return {
+    enabled: true,
+    billing_cycle: 'monthly',
+    term_months: 3,
+    monthly_amount_cents: mrrCents,
+    reminder_days_before: 7,
+    contract_start: new Date().toISOString(),
+    next_billing_date: next.toISOString(),
+    last_billed_date: null,
+    contact_frequency: 'monthly',
+    next_contact_date: new Date(Date.now() + 86400000 * 14).toISOString(),
+    auto_renew: true
+  }
+}
+
+export function createEmptyClientProfile(clientId: string, mrrCents = 0): ClientProfile {
   return {
     client_id: clientId,
     primary_contact: '',
@@ -158,6 +214,8 @@ export function createEmptyClientProfile(clientId: string): ClientProfile {
     platform_logins: [],
     project_status: 'active',
     close_checklist: [],
+    retainer_schedule: createDefaultRetainerSchedule(mrrCents),
+    time_entries: [],
     updated_at: new Date().toISOString()
   }
 }
@@ -168,6 +226,9 @@ export interface Financial {
   invoice_path: string
   amount: number
   status: string
+  stripe_invoice_id?: string | null
+  hosted_invoice_url?: string | null
+  created_at?: string
 }
 
 export interface Campaign {
@@ -179,6 +240,9 @@ export interface Campaign {
   status: string
 }
 
+export type TaskPriority = 'low' | 'medium' | 'high'
+export type TaskStatus = 'todo' | 'in_progress' | 'done'
+
 export interface Task {
   id: string
   assignee_id: string | null
@@ -186,6 +250,30 @@ export interface Task {
   title: string
   due_date: string | null
   status: string
+  priority?: TaskPriority
+}
+
+export interface WhiteboardConnection {
+  id: string
+  from_id: string
+  to_id: string
+  from_anchor: 'top' | 'right' | 'bottom' | 'left'
+  to_anchor: 'top' | 'right' | 'bottom' | 'left'
+}
+
+export interface WhiteboardItem {
+  id: string
+  user_id: string
+  type: 'note' | 'connector'
+  x: number
+  y: number
+  width: number
+  height: number
+  content: string
+  color: string
+  target_id: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Message {

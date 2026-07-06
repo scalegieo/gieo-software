@@ -56,3 +56,7 @@ export function loadSession(): GieoUser | null {
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
+
+export function getProfileById(userId: string): Profile | undefined {
+  return GIEO_USERS.find((u) => u.profile.id === userId)?.profile
+}

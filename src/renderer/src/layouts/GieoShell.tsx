@@ -4,12 +4,13 @@ import {
   Kanban,
   Users,
   MessageSquare,
-  Sparkles,
   ChevronRight,
-  Bell,
   Search,
   Sheet,
-  Trophy
+  Trophy,
+  PenTool,
+  ListTodo,
+  CalendarDays
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/store/useStore'
@@ -24,43 +25,55 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { TeamChat } from '@/components/TeamChat'
-import { AISidebar } from '@/components/AISidebar'
+import { EbonicsPanel } from '@/components/EbonicsPanel'
+import { FridayAvatar } from '@/components/FridayAvatar'
+import { CreateTaskDialog } from '@/components/CreateTaskDialog'
+import { NotificationsPanel } from '@/components/NotificationsPanel'
+import { OllamaBootIndicator } from '@/components/OllamaBootIndicator'
 import { Input } from '@/components/ui/input'
 import { GieoLogo } from '@/components/GieoLogo'
 import { PageWatermark } from '@/components/PageWatermark'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/tasks', icon: ListTodo, label: 'Tasks' },
   { to: '/crm', icon: Kanban, label: 'CRM Pipeline' },
   { to: '/clients', icon: Users, label: 'Clients' },
   { to: '/leads', icon: Sheet, label: 'Lead Sheet' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
+  { to: '/whiteboard', icon: PenTool, label: 'Whiteboard' },
   { to: '/team', icon: Trophy, label: 'Team Stats' }
 ]
 
 export function GieoShell(): JSX.Element {
   const location = useLocation()
+
   const {
     profile,
     chatOpen,
     aiSidebarOpen,
-    isUsingLocalData,
+    connectionError,
     setChatOpen,
     setAiSidebarOpen,
-    signOut
+    signOut,
+    getPendingTaskCount
   } = useStore()
 
+  const pendingTasks = getPendingTaskCount()
   const currentPage = navItems.find((item) => item.to === location.pathname)?.label ?? 'GIEO'
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-zinc-950">
       <PageWatermark />
 
-      <aside className="relative z-10 flex w-56 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950/95 backdrop-blur-sm">
-        <div className="flex h-16 items-center border-b border-zinc-800 px-4 py-3">
-          <GieoLogo className="h-10" />
+      <aside className="relative z-10 flex w-56 shrink-0 flex-col liquid-glass-sidebar">
+        <div className="flex h-[7.5rem] w-full shrink-0 flex-col border-b border-zinc-800 px-2 pb-3 pt-9">
+          <div className="flex min-h-0 flex-1 w-full items-center overflow-hidden">
+            <GieoLogo fill className="origin-left scale-[2.1]" />
+          </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5 p-3">
+        <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -76,31 +89,41 @@ export function GieoShell(): JSX.Element {
               }
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {to === '/tasks' && pendingTasks > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-medium text-zinc-950">
+                  {pendingTasks > 9 ? '9+' : pendingTasks}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
 
         <div className="border-t border-zinc-800 p-3">
-          {isUsingLocalData && (
-            <Badge variant="warning" className="mb-2 w-full justify-center">
-              Sample Data
+          {connectionError && (
+            <Badge variant="warning" className="mb-2 w-full justify-center text-[10px]">
+              Offline — can&apos;t reach server
             </Badge>
           )}
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 text-zinc-400"
+            className={cn(
+              'w-full justify-start gap-2.5 text-zinc-200 border-white/15 liquid-glass-inset',
+              'hover:border-violet-400/30 hover:bg-violet-500/10',
+              aiSidebarOpen && 'border-violet-400/40 bg-violet-500/10'
+            )}
             onClick={() => setAiSidebarOpen(!aiSidebarOpen)}
           >
-            <Sparkles className="h-4 w-4 text-zinc-200" />
-            AI Assistant
+            <FridayAvatar size="sm" />
+            FRIDAY
+            <span className="ml-auto text-[10px] text-zinc-600">⌥</span>
           </Button>
         </div>
       </aside>
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-sm px-4">
+        <header className="flex h-14 shrink-0 items-center justify-between liquid-glass-header px-4">
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <GieoLogo variant="icon" iconClassName="h-5 w-5 hidden sm:block" />
             <ChevronRight className="h-3.5 w-3.5" />
@@ -108,6 +131,9 @@ export function GieoShell(): JSX.Element {
           </div>
 
           <div className="flex items-center gap-2">
+            <OllamaBootIndicator />
+            <CreateTaskDialog />
+
             <div className="relative hidden md:block">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
               <Input placeholder="Search clients, leads..." className="h-8 w-56 pl-8 text-xs" />
@@ -116,18 +142,38 @@ export function GieoShell(): JSX.Element {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-8 w-8"
+              title="FRIDAY chat"
+              className={cn(
+                'relative h-8 w-8 rounded-lg border border-transparent overflow-hidden',
+                'hover:border-violet-400/25 hover:bg-violet-500/10',
+                aiSidebarOpen && 'border-violet-400/35 bg-violet-500/10 shadow-[0_0_16px_rgba(139,92,246,0.25)]'
+              )}
+              onClick={() => setAiSidebarOpen(!aiSidebarOpen)}
+            >
+              <FridayAvatar size="sm" className="h-5 w-5" />
+              {aiSidebarOpen && (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-violet-400" />
+              )}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Team chat"
+              className={cn(
+                'relative h-8 w-8 rounded-lg border border-transparent',
+                'hover:border-white/10 hover:bg-white/5',
+                chatOpen && 'border-white/15 bg-white/5'
+              )}
               onClick={() => setChatOpen(!chatOpen)}
             >
               <MessageSquare className="h-4 w-4" />
               {chatOpen && (
-                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-zinc-100" />
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-violet-400" />
               )}
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Bell className="h-4 w-4" />
-            </Button>
+            <NotificationsPanel />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -156,12 +202,12 @@ export function GieoShell(): JSX.Element {
           </main>
 
           {chatOpen && (
-            <aside className="w-80 shrink-0 border-l border-zinc-800 bg-zinc-950/95 backdrop-blur-sm">
+            <aside className="w-80 shrink-0 liquid-glass-panel border-l border-white/10 rounded-none">
               <TeamChat />
             </aside>
           )}
 
-          {aiSidebarOpen && <AISidebar />}
+          <EbonicsPanel />
         </div>
       </div>
     </div>

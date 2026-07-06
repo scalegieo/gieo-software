@@ -2,10 +2,22 @@ import { app, shell, BrowserWindow, ipcMain, dialog, Notification } from 'electr
 import { join } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { homedir } from 'os'
-import { bootstrapOllama, ollamaChat, getOllamaStatus } from './ollama'
+import { bootstrapOllama, autoBootOllamaOnLaunch } from './ollama-bootstrap'
+import { ollamaChat, getOllamaStatus, getOllamaAccount, ollamaParseLead, ollamaParseAgent, getOllamaUsage } from './ollama'
+import { initOllamaLimits, preflightOllamaRequest, maybeResetMstDay, maybeResetSessionWindow, maybeResetWeeklyWindow } from './ollama-limits'
+import { listStripeInvoices, createStripePaymentLink, getStripeStatus } from './stripe'
+import {
+  initCalendarStore,
+  getCalendarStatus,
+  connectGoogleCalendar,
+  disconnectGoogleCalendar,
+  connectCalendly,
+  disconnectCalendly,
+  fetchCalendarEvents
+} from './calendar'
+import { GIEO_SECRETS } from './gieo-config'
 
-const LEAD_SHEET_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/17vLvEtcxir8cFI2xzI9AA5R8xMikA4Pq48tBhiB5J5E/export?format=csv'
+const LEAD_SHEET_CSV_URL = GIEO_SECRETS.googleSheets.csvUrl
 
 const isDev = !app.isPackaged
 
@@ -167,13 +179,33 @@ function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('gieo:ollama-bootstrap', async () => bootstrapOllama())
+  ipcMain.handle('gieo:ollama-bootstrap', async () => bootstrapOllama(true))
 
   ipcMain.handle('gieo:ollama-status', async () => getOllamaStatus())
+
+  ipcMain.handle('gieo:ollama-account', async () => getOllamaAccount())
+
+  ipcMain.handle('gieo:ollama-usage', async () => getOllamaUsage())
+
+  ipcMain.handle(
+    'gieo:ollama-preflight',
+    async (_event, messages: { role: string; content: string }[], numPredict: number) =>
+      preflightOllamaRequest({ messages, numPredict })
+  )
 
   ipcMain.handle(
     'gieo:ollama-chat',
     async (_event, messages: { role: string; content: string }[]) => ollamaChat(messages)
+  )
+
+  ipcMain.handle('gieo:ollama-parse-lead', async (_event, userMessage: string) =>
+    ollamaParseLead(userMessage)
+  )
+
+  ipcMain.handle(
+    'gieo:ollama-parse-agent',
+    async (_event, userMessage: string, platformContext?: string) =>
+      ollamaParseAgent(userMessage, platformContext)
   )
 
   ipcMain.handle('gieo:fetch-lead-sheet', async () => {
@@ -188,19 +220,63 @@ function registerIpcHandlers(): void {
       return { success: false, error: (error as Error).message }
     }
   })
+
+  ipcMain.handle('gieo:stripe-status', async () => getStripeStatus())
+
+  ipcMain.handle('gieo:stripe-list-invoices', async () => listStripeInvoices(30))
+
+  ipcMain.handle(
+    'gieo:stripe-create-payment-link',
+    async (
+      _event,
+      input: { amountCents: number; clientName: string; clientEmail?: string }
+    ) => createStripePaymentLink(input)
+  )
+
+  ipcMain.handle('gieo:calendar-status', async () => getCalendarStatus())
+
+  ipcMain.handle('gieo:calendar-connect-google', async () => connectGoogleCalendar())
+
+  ipcMain.handle('gieo:calendar-disconnect-google', async () => {
+    disconnectGoogleCalendar()
+    return { success: true }
+  })
+
+  ipcMain.handle('gieo:calendar-connect-calendly', async (_event, token: string) =>
+    connectCalendly(token)
+  )
+
+  ipcMain.handle('gieo:calendar-disconnect-calendly', async () => {
+    disconnectCalendly()
+    return { success: true }
+  })
+
+  ipcMain.handle('gieo:calendar-events', async (_event, daysAhead?: number) =>
+    fetchCalendarEvents(daysAhead ?? 14)
+  )
 }
 
 app.whenReady().then(() => {
   ensureGieoDirectories()
+  initOllamaLimits(app.getPath('userData'))
+  initCalendarStore(app.getPath('userData'))
+  setInterval(() => {
+    maybeResetMstDay()
+    maybeResetSessionWindow()
+    maybeResetWeeklyWindow()
+  }, 60_000)
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.gieo.crm')
   }
   registerIpcHandlers()
-  void bootstrapOllama()
+  autoBootOllamaOnLaunch()
   createWindow()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    }
+    autoBootOllamaOnLaunch()
   })
 })
 

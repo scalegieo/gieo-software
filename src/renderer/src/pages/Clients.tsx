@@ -5,9 +5,10 @@ import {
   Upload,
   FolderOpen,
   Plus,
-  TrendingUp,
   DollarSign,
-  UserCircle
+  UserCircle,
+  Clock,
+  CalendarClock
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,10 +23,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ClientProfilePanel } from '@/components/ClientProfilePanel'
+import { ClientHoursBillingPanel } from '@/components/ClientHoursBillingPanel'
 import { AddClientDialog } from '@/components/AddClientDialog'
 import { useStore } from '@/store/useStore'
 import { formatCurrency, slugify } from '@/lib/types'
 import { formatDate, cn } from '@/lib/utils'
+import { getTotalHours, computeNextBillingDate, getBillingReminder } from '@/lib/retainerBilling'
 import type { Client } from '@/lib/types'
 
 function statusVariant(status: string): 'success' | 'warning' | 'destructive' | 'pending' | 'secondary' {
@@ -50,15 +53,23 @@ function ClientDetailDialog({
   open: boolean
   onClose: () => void
 }): JSX.Element | null {
-  const { campaigns, financials, tasks, getClientProfile } = useStore()
+  const { campaigns, financials, tasks, getClientProfile, syncStripePayments, createStripePaymentLink } = useStore()
   const [localFiles, setLocalFiles] = useState<string[]>([])
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
+  const [stripeStatus, setStripeStatus] = useState<string | null>(null)
+  const [stripeConfigured, setStripeConfigured] = useState(false)
 
   const clientCampaigns = campaigns.filter((c) => c.client_id === client?.id)
   const clientFinancials = financials.filter((f) => f.client_id === client?.id)
   const clientTasks = tasks.filter((t) => t.client_id === client?.id)
   const clientSlug = slugify(client?.company ?? client?.name ?? 'client')
   const profile = client ? getClientProfile(client.id) : null
+
+  useEffect(() => {
+    if (open && window.gieo?.getStripeStatus) {
+      void window.gieo.getStripeStatus().then((s) => setStripeConfigured(s.configured))
+    }
+  }, [open])
 
   useEffect(() => {
     if (open && client && window.gieo) {
@@ -69,6 +80,28 @@ function ClientDetailDialog({
       })
     }
   }, [open, client, clientSlug])
+
+  const handleStripeSync = async (): Promise<void> => {
+    setStripeStatus('Syncing from Stripe…')
+    const result = await syncStripePayments()
+    if (result.error) {
+      setStripeStatus(result.error)
+    } else {
+      setStripeStatus(`Synced ${result.count ?? 0} invoice(s) from Stripe`)
+    }
+  }
+
+  const handleCreatePaymentLink = async (): Promise<void> => {
+    if (!client) return
+    setStripeStatus('Creating payment link…')
+    const result = await createStripePaymentLink(client.id)
+    if (result.error) {
+      setStripeStatus(result.error)
+    } else if (result.url) {
+      setStripeStatus('Payment link created — opening in browser')
+      window.open(result.url, '_blank')
+    }
+  }
 
   const handleUpload = async (): Promise<void> => {
     if (!window.gieo || !client) return
@@ -88,23 +121,30 @@ function ClientDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{client.company ?? client.name}</DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-2">
             <span>MRR {formatCurrency(client.mrr)}</span>
             <Badge variant={statusVariant(client.status)} className="capitalize">{client.status}</Badge>
-            {profile && profile.services.length > 0 && (
-              <span className="text-zinc-500">· {profile.services.length} services</span>
-            )}
-            {profile && profile.call_logs.length > 0 && (
-              <span className="text-zinc-500">· {profile.call_logs.length} calls logged</span>
+            {profile && (
+              <>
+                <span className="text-zinc-500">· {getTotalHours(profile).toFixed(1)}h logged</span>
+                {profile.retainer_schedule?.enabled && (
+                  <span className="text-zinc-500">
+                    · Next bill {formatDate(computeNextBillingDate(profile.retainer_schedule).toISOString())}
+                  </span>
+                )}
+              </>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="profile">
+        <Tabs defaultValue="hours-billing">
           <TabsList className="flex-wrap h-auto gap-1">
+            <TabsTrigger value="hours-billing" className="gap-1">
+              <Clock className="h-3.5 w-3.5" /> Hours & Billing
+            </TabsTrigger>
             <TabsTrigger value="profile" className="gap-1">
               <UserCircle className="h-3.5 w-3.5" /> Profile
             </TabsTrigger>
@@ -114,11 +154,46 @@ function ClientDetailDialog({
             <TabsTrigger value="local-files">Local Files</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="hours-billing">
+            <ScrollArea className="h-[min(560px,65vh)]">
+              <ClientHoursBillingPanel client={client} />
+            </ScrollArea>
+          </TabsContent>
+
           <TabsContent value="profile">
             <ClientProfilePanel client={client} />
           </TabsContent>
 
           <TabsContent value="financials">
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => void handleStripeSync()}
+                disabled={!stripeConfigured}
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                Sync Stripe Invoices
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => void handleCreatePaymentLink()}
+                disabled={!stripeConfigured}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Create Payment Link
+              </Button>
+            </div>
+            {!stripeConfigured && (
+              <p className="text-xs text-amber-400 mb-3 border border-amber-500/20 bg-amber-500/10 rounded-md px-3 py-2">
+                Add your Stripe secret key in <code className="text-amber-200">src/main/gieo-config.ts</code> (sk_test_… or sk_live_…) to manage real payments.
+              </p>
+            )}
+            {stripeStatus && (
+              <p className="text-xs text-zinc-400 mb-3">{stripeStatus}</p>
+            )}
             <ScrollArea className="h-64">
               <table className="w-full text-sm">
                 <thead>
@@ -131,14 +206,29 @@ function ClientDetailDialog({
                 <tbody>
                   {clientFinancials.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="py-8 text-center text-zinc-500">No financial records</td>
+                      <td colSpan={3} className="py-8 text-center text-zinc-500">No financial records — sync from Stripe or add manually</td>
                     </tr>
                   ) : (
                     clientFinancials.map((fin) => (
                       <tr key={fin.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                        <td className="py-2.5 flex items-center gap-2">
-                          <FileText className="h-3.5 w-3.5 text-zinc-500" />
-                          <span className="truncate max-w-[200px]">{fin.invoice_path}</span>
+                        <td className="py-2.5">
+                          {fin.hosted_invoice_url ? (
+                            <a
+                              href={fin.hosted_invoice_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-zinc-200 hover:underline"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                              Stripe Invoice
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="flex items-center gap-2 truncate max-w-[200px]">
+                              <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                              {fin.invoice_path}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 text-zinc-100">{formatCurrency(fin.amount)}</td>
                         <td className="py-2.5">
@@ -265,7 +355,7 @@ function ClientDetailDialog({
 }
 
 export function Clients(): JSX.Element {
-  const { clients, campaigns, clientProfiles, getClientProfile, setActiveClient } = useStore()
+  const { clients, clientProfiles, getClientProfile, setActiveClient } = useStore()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -277,21 +367,14 @@ export function Clients(): JSX.Element {
     setDialogOpen(true)
   }
 
-  const totalSpendByClient = (clientId: string): number =>
-    campaigns.filter((c) => c.client_id === clientId).reduce((sum, c) => sum + c.spend, 0)
-
-  const avgRoasByClient = (clientId: string): number => {
-    const clientCampaigns = campaigns.filter((c) => c.client_id === clientId)
-    if (clientCampaigns.length === 0) return 0
-    return clientCampaigns.reduce((sum, c) => sum + c.roas, 0) / clientCampaigns.length
-  }
-
   return (
     <div className="relative z-10 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Client Hub</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">{clients.length} accounts · profiles, calls & meetings</p>
+          <p className="text-sm text-zinc-400 mt-0.5">
+            {clients.length} accounts · {clients.filter((c) => c.status === 'active').length} active · hours & retainer billing
+          </p>
         </div>
         <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
@@ -307,13 +390,15 @@ export function Clients(): JSX.Element {
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider">Client</th>
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider">MRR</th>
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider hidden md:table-cell">Services</th>
-                <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider hidden lg:table-cell">Avg ROAS</th>
+                <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider hidden md:table-cell">Hours</th>
+                <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider hidden lg:table-cell">Next bill</th>
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody>
               {clients.map((client) => {
-                const cp = clientProfiles[client.id]
+                const cp = clientProfiles[client.id] ?? getClientProfile(client.id)
+                const billReminder = cp ? getBillingReminder(client, cp) : null
                 return (
                   <tr
                     key={client.id}
@@ -343,15 +428,23 @@ export function Clients(): JSX.Element {
                         {!cp?.services.length && <span className="text-zinc-600 text-xs">—</span>}
                       </div>
                     </td>
-                    <td className="py-3 px-4 hidden lg:table-cell">
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="h-3.5 w-3.5 text-zinc-500" />
-                        <span className={cn(
-                          avgRoasByClient(client.id) >= 3 ? 'text-emerald-400' : avgRoasByClient(client.id) > 0 ? 'text-amber-400' : 'text-zinc-500'
-                        )}>
-                          {avgRoasByClient(client.id) > 0 ? `${avgRoasByClient(client.id).toFixed(1)}x` : '—'}
-                        </span>
+                    <td className="py-3 px-4 hidden md:table-cell">
+                      <div className="flex items-center gap-1 text-zinc-300 tabular-nums">
+                        <Clock className="h-3.5 w-3.5 text-zinc-500" />
+                        {cp ? `${getTotalHours(cp).toFixed(1)}h` : '—'}
                       </div>
+                    </td>
+                    <td className="py-3 px-4 hidden lg:table-cell">
+                      {cp?.retainer_schedule?.enabled ? (
+                        <div className="flex items-center gap-1 text-xs">
+                          <CalendarClock className={cn('h-3.5 w-3.5', billReminder ? 'text-amber-400' : 'text-zinc-500')} />
+                          <span className={cn(billReminder?.isOverdue && 'text-red-400', billReminder?.isReminderWindow && 'text-amber-400')}>
+                            {formatDate(computeNextBillingDate(cp.retainer_schedule).toISOString())}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-600 text-xs">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant={statusVariant(client.status)} className="capitalize">{client.status}</Badge>
