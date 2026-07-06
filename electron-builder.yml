@@ -10,11 +10,22 @@
   "asar": true,
   "mac": {
     "target": [
-      { "target": "zip", "arch": ["arm64", "x64"] },
       { "target": "dmg", "arch": ["arm64", "x64"] }
     ],
     "category": "public.app-category.business",
     "artifactName": "GIEO-CRM-${version}-${arch}.${ext}"
+  },
+  "dmg": {
+    "title": "GIEO CRM ${version}",
+    "iconSize": 100,
+    "window": {
+      "width": 540,
+      "height": 380
+    },
+    "contents": [
+      { "x": 130, "y": 180 },
+      { "x": 410, "y": 180, "type": "link", "path": "/Applications" }
+    ]
   },
   "win": {
     "target": [{ "target": "zip", "arch": ["x64"] }],

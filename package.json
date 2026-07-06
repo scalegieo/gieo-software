@@ -9,12 +9,12 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack": "npm run build && electron-builder --mac zip",
-    "pack:mac": "npm run build && electron-builder --mac zip",
+    "pack": "npm run build && electron-builder --mac dmg",
+    "pack:mac": "npm run build && electron-builder --mac dmg",
     "pack:win": "npm run build && electron-builder --win zip",
-    "pack:all": "npm run build && electron-builder --mac zip --win zip",
-    "release": "npm run pack",
-    "release:mac": "npm run build && electron-builder --mac zip --arm64 --x64",
+    "pack:all": "npm run build && electron-builder --mac dmg --win zip",
+    "release": "npm run build && electron-builder --mac dmg",
+    "release:mac": "npm run build && electron-builder --mac dmg --arm64 --x64",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

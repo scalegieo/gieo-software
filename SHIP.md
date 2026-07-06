@@ -1,35 +1,48 @@
 # Ship GIEO CRM to your team
 
-## Quick start (you — build the zip)
+## Quick start (you — build the DMG)
 
 ```bash
 cd gieo-app
 npm install
-npm run release        # Mac zip for your current chip (arm64 on Apple Silicon)
-npm run release:mac    # Both arm64 + Intel Mac zips
+npm run release        # DMG for your Mac chip (arm64 on Apple Silicon)
+npm run release:mac    # Both arm64 + Intel DMGs
 ```
 
-Zips land in **`release/`** — e.g. `GIEO-CRM-1.0.0-arm64.zip`.
+The installer lands in **`release/`** — e.g. `GIEO-CRM-1.0.0-arm64.dmg`.
 
-Send the zip + logins (below) to your team. They unzip and open **GIEO CRM.app**.
+**Publish to GitHub so friends can download:**
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+GitHub Actions builds both Mac DMGs and attaches them to **Releases**.
+
+Or: GitHub → **Actions** → **Build Mac App (DMG)** → **Run workflow**.
+
+Friends install from: **[INSTALL-MAC.md](./INSTALL-MAC.md)** (open DMG → drag to Applications).
 
 ---
 
 ## Friend install (share this section)
 
-### 1. Download the right zip
+### 1. Download the right file
 
-| Your Mac | File to use |
-|----------|-------------|
-| Apple Silicon (M1/M2/M3/M4) | `GIEO-CRM-1.0.0-arm64.zip` |
-| Intel Mac | `GIEO-CRM-1.0.0-x64.zip` |
+Go to **[github.com/scalegieo/gieo-software/releases](https://github.com/scalegieo/gieo-software/releases)**
+
+| Your Mac | File |
+|----------|------|
+| Apple Silicon (M1/M2/M3/M4) | `GIEO-CRM-1.0.0-arm64.dmg` |
+| Intel Mac | `GIEO-CRM-1.0.0-x64.dmg` |
 
 ### 2. Install
 
-1. Unzip the file
-2. Drag **GIEO CRM.app** to Applications (optional)
-3. **First launch:** Mac may block the app (unsigned). Right-click the app → **Open** → **Open** again
-4. You need **internet** — the app syncs clients, tasks, chat, and hours with the team database
+1. Double-click the `.dmg`
+2. **Drag GIEO CRM → Applications** (the window shows both icons)
+3. Open **Applications** → **GIEO CRM**
+4. First launch: **right-click → Open** (Mac security for unsigned apps)
 
 ### 3. Log in
 
