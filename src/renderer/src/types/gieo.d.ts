@@ -72,7 +72,15 @@ declare global {
       getDataPaths: () => Promise<GieoDataPaths>
       pickAndSaveFile: (clientSlug: string) => Promise<GieoFileResult>
       archiveFile: (relativePath: string) => Promise<GieoFileResult>
-      showNotification: (title: string, body: string) => Promise<{ success: boolean; error?: string }>
+      showNotification: (title: string, body: string) => Promise<{ success: boolean; error?: string; skipped?: boolean }>
+      getNotificationPermission: () => Promise<{
+        permission: 'granted' | 'denied' | 'not-determined' | 'unsupported'
+        supported: boolean
+      }>
+      requestNotificationPermission: () => Promise<{
+        permission: 'granted' | 'denied' | 'not-determined' | 'unsupported'
+      }>
+      openNotificationSettings: () => Promise<{ success: boolean }>
       bootstrapOllama: () => Promise<OllamaBootStatus>
       getOllamaStatus: () => Promise<OllamaBootStatus>
       getOllamaAccount: () => Promise<{ plan: string; email: string; name: string } | null>

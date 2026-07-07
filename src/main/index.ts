@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Notification } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { homedir } from 'os'
@@ -16,6 +16,12 @@ import {
   fetchCalendarEvents
 } from './calendar'
 import { GIEO_SECRETS } from './gieo-config'
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  showSystemNotification,
+  openNotificationSettings
+} from './notifications'
 
 const LEAD_SHEET_CSV_URL = GIEO_SECRETS.googleSheets.csvUrl
 
@@ -168,15 +174,23 @@ function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('gieo:show-notification', async (_event, title: string, body: string) => {
-    try {
-      if (Notification.isSupported()) {
-        new Notification({ title, body }).show()
-      }
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: (error as Error).message }
-    }
+  ipcMain.handle('gieo:show-notification', async (_event, title: string, body: string) =>
+    showSystemNotification(title, body)
+  )
+
+  ipcMain.handle('gieo:notification-permission', async () => ({
+    permission: getNotificationPermission(),
+    supported: getNotificationPermission() !== 'unsupported'
+  }))
+
+  ipcMain.handle('gieo:request-notification-permission', async () => {
+    const permission = await requestNotificationPermission()
+    return { permission }
+  })
+
+  ipcMain.handle('gieo:open-notification-settings', async () => {
+    openNotificationSettings()
+    return { success: true }
   })
 
   ipcMain.handle('gieo:ollama-bootstrap', async () => bootstrapOllama(true))
@@ -265,7 +279,7 @@ app.whenReady().then(() => {
     maybeResetSessionWindow()
     maybeResetWeeklyWindow()
   }, 60_000)
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' || process.platform === 'darwin') {
     app.setAppUserModelId('com.gieo.crm')
   }
   registerIpcHandlers()

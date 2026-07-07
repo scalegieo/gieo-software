@@ -36,8 +36,17 @@ const gieoApi = {
     ipcRenderer.invoke('gieo:pick-and-save-file', clientSlug),
   archiveFile: (relativePath: string): Promise<GieoFileResult> =>
     ipcRenderer.invoke('gieo:archive-file', relativePath),
-  showNotification: (title: string, body: string): Promise<{ success: boolean; error?: string }> =>
+  showNotification: (title: string, body: string): Promise<{ success: boolean; error?: string; skipped?: boolean }> =>
     ipcRenderer.invoke('gieo:show-notification', title, body),
+  getNotificationPermission: (): Promise<{
+    permission: 'granted' | 'denied' | 'not-determined' | 'unsupported'
+    supported: boolean
+  }> => ipcRenderer.invoke('gieo:notification-permission'),
+  requestNotificationPermission: (): Promise<{
+    permission: 'granted' | 'denied' | 'not-determined' | 'unsupported'
+  }> => ipcRenderer.invoke('gieo:request-notification-permission'),
+  openNotificationSettings: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('gieo:open-notification-settings'),
   bootstrapOllama: (): Promise<{
     phase: string
     message: string

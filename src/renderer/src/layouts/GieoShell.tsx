@@ -30,6 +30,7 @@ import { FridayAvatar } from '@/components/FridayAvatar'
 import { CreateTaskDialog } from '@/components/CreateTaskDialog'
 import { NotificationsPanel } from '@/components/NotificationsPanel'
 import { OllamaBootIndicator } from '@/components/OllamaBootIndicator'
+import { useTeamNotificationListener } from '@/hooks/useTeamNotificationListener'
 import { Input } from '@/components/ui/input'
 import { GieoLogo } from '@/components/GieoLogo'
 import { PageWatermark } from '@/components/PageWatermark'
@@ -61,6 +62,8 @@ export function GieoShell(): JSX.Element {
 
   const pendingTasks = getPendingTaskCount()
   const currentPage = navItems.find((item) => item.to === location.pathname)?.label ?? 'GIEO'
+
+  useTeamNotificationListener()
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-zinc-950">

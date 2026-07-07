@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from 'react'
+import { useMemo, useState, useEffect, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -7,7 +7,9 @@ import {
   AlertCircle,
   MessageSquare,
   ListTodo,
-  CheckCheck
+  CheckCheck,
+  BellRing,
+  Settings2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +27,15 @@ import {
   markNotificationsRead,
   isAfterLastRead
 } from '@/lib/notificationInbox'
+import {
+  getSystemNotificationPermission,
+  requestSystemNotificationPermission,
+  openSystemNotificationSettings,
+  sendTestNotification,
+  areSystemNotificationsEnabled,
+  setSystemNotificationsEnabled,
+  type NotificationPermission
+} from '@/lib/notifications'
 import type { Task, Message } from '@/lib/types'
 
 function taskIcon(status: string): JSX.Element {
@@ -38,6 +49,15 @@ export function NotificationsPanel(): JSX.Element {
   const { profile, tasks, messages, clients, setActiveTask, updateTaskStatus } = useStore()
   const [open, setOpen] = useState(false)
   const [lastRead, setLastRead] = useState(getNotificationsLastRead)
+  const [macPermission, setMacPermission] = useState<NotificationPermission>('not-determined')
+  const [notifBusy, setNotifBusy] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    void getSystemNotificationPermission().then(setMacPermission)
+  }, [open])
+
+  const macNotificationsOn = macPermission === 'granted' && areSystemNotificationsEnabled()
 
   const myOpenTasks = useMemo(
     () =>
@@ -86,6 +106,23 @@ export function NotificationsPanel(): JSX.Element {
     void updateTaskStatus(taskId, 'done')
   }
 
+  const enableMacNotifications = async (): Promise<void> => {
+    setNotifBusy(true)
+    try {
+      const permission = await requestSystemNotificationPermission()
+      setMacPermission(permission)
+      if (permission === 'granted') {
+        await sendTestNotification()
+      }
+    } finally {
+      setNotifBusy(false)
+    }
+  }
+
+  const openMacSettings = async (): Promise<void> => {
+    await openSystemNotificationSettings()
+  }
+
   return (
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -127,6 +164,75 @@ export function NotificationsPanel(): JSX.Element {
             Mark read
           </Button>
         </div>
+
+        <section className="border-b border-white/10 px-3 py-3">
+          <div className="flex items-start gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
+            <BellRing className={cn('h-4 w-4 shrink-0 mt-0.5', macNotificationsOn ? 'text-emerald-400' : 'text-amber-400')} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div>
+                <p className="text-xs font-medium text-zinc-100">Mac system notifications</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5 leading-relaxed">
+                  {macPermission === 'unsupported'
+                    ? 'Not available on this platform.'
+                    : macNotificationsOn
+                      ? 'Alerts appear in Notification Center for tasks and team chat.'
+                      : macPermission === 'denied'
+                        ? 'Blocked in System Settings — turn on for GIEO CRM.'
+                        : 'Allow macOS to show GIEO alerts when you get tasks or messages.'}
+                </p>
+              </div>
+              {macPermission !== 'unsupported' && (
+                <div className="flex flex-wrap gap-1.5">
+                  {macPermission !== 'granted' && (
+                    <Button
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      disabled={notifBusy}
+                      onClick={() => void enableMacNotifications()}
+                    >
+                      {notifBusy ? 'Requesting…' : 'Allow notifications'}
+                    </Button>
+                  )}
+                  {macPermission === 'granted' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px]"
+                      disabled={notifBusy}
+                      onClick={() => void sendTestNotification()}
+                    >
+                      Test alert
+                    </Button>
+                  )}
+                  {(macPermission === 'denied' || macPermission === 'granted') && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-[11px] gap-1"
+                      onClick={() => void openMacSettings()}
+                    >
+                      <Settings2 className="h-3 w-3" />
+                      System Settings
+                    </Button>
+                  )}
+                  {macPermission === 'granted' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-[11px]"
+                      onClick={() => {
+                        setSystemNotificationsEnabled(!areSystemNotificationsEnabled())
+                        void getSystemNotificationPermission().then(setMacPermission)
+                      }}
+                    >
+                      {areSystemNotificationsEnabled() ? 'Mute in GIEO' : 'Unmute in GIEO'}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
 
         <div className="max-h-[min(420px,70vh)] overflow-y-auto">
           <section className="px-3 py-2">
