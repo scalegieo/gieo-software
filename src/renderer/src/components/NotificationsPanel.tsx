@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import { useStore } from '@/store/useStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { inBusiness } from '@/lib/workspace'
 import { getProfileById } from '@/lib/auth'
 import {
   getNotificationsLastRead,
@@ -46,7 +48,9 @@ function taskIcon(status: string): JSX.Element {
 
 export function NotificationsPanel(): JSX.Element {
   const navigate = useNavigate()
-  const { profile, tasks, messages, clients, setActiveTask, updateTaskStatus } = useStore()
+  const { profile, messages: allMessages, activeBusiness, setActiveTask, updateTaskStatus } = useStore()
+  const { tasks, clients } = useWorkspace()
+  const messages = allMessages.filter((m) => inBusiness(activeBusiness, m))
   const [open, setOpen] = useState(false)
   const [lastRead, setLastRead] = useState(getNotificationsLastRead)
   const [macPermission, setMacPermission] = useState<NotificationPermission>('not-determined')

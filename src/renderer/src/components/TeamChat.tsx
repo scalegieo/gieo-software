@@ -8,18 +8,19 @@ import { useStore } from '@/store/useStore'
 import { supabase } from '@/lib/supabase'
 import { getProfileById } from '@/lib/auth'
 import { mapDbMessage } from '@/lib/messages'
+import { inBusiness } from '@/lib/workspace'
 import { formatRelativeTime } from '@/lib/utils'
 import type { Message } from '@/lib/types'
 
 export function TeamChat(): JSX.Element {
-  const { messages, profile, sendMessage, addMessage, activeTaskId } = useStore()
+  const { messages, profile, sendMessage, addMessage, activeTaskId, activeBusiness } = useStore()
   const [input, setInput] = useState('')
   const [mode, setMode] = useState<'global' | 'task'>('global')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const filteredMessages = mode === 'task' && activeTaskId
     ? messages.filter((m) => m.task_id === activeTaskId)
-    : messages.filter((m) => !m.task_id)
+    : messages.filter((m) => !m.task_id && inBusiness(activeBusiness, m))
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

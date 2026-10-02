@@ -10,11 +10,11 @@ export function parseEbonicsInput(raw: string): { mode: 'chat' | 'agent'; body: 
 export const AGENT_HELP = `FRIDAY agent mode — full CRM access.
 
 Read (works in chat too):
-• "What's our MRR?" · "Who has billing due?" · "List open tasks for Yoni"
+• "What's our MRR?" · "Who has billing due?" · "List open tasks for Sulay"
 
 Act (use /agent):
 • /agent add lead Sarah at Acme, sarah@acme.com
-• /agent assign task to Yoni: homepage mockups by Friday
+• /agent assign task to Sulay: homepage mockups by Friday
 • /agent move Acme Dental to meeting stage
 • /agent log 2 hours for Acme — strategy call
 • /agent search dental clients

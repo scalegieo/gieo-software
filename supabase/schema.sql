@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS messages (
   content TEXT NOT NULL,
   task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
   message_type TEXT NOT NULL DEFAULT 'user',
+  business TEXT NOT NULL DEFAULT 'gieo',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -83,6 +84,7 @@ CREATE TABLE IF NOT EXISTS whiteboard_items (
   content TEXT NOT NULL DEFAULT '',
   color TEXT NOT NULL DEFAULT 'amber',
   target_id TEXT REFERENCES whiteboard_items(id) ON DELETE SET NULL,
+  business TEXT NOT NULL DEFAULT 'gieo',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -137,7 +139,12 @@ INSERT INTO profiles (id, role, name) VALUES
   ('a1000002-0000-4000-8000-000000000002', 'media_buyer', 'Yoni'),
   ('a1000003-0000-4000-8000-000000000003', 'sales', 'Yeab'),
   ('a1000004-0000-4000-8000-000000000004', 'ops', 'Natu'),
-  ('a1000005-0000-4000-8000-000000000005', 'creative', 'Lydia')
+  ('a1000005-0000-4000-8000-000000000005', 'creative', 'Lydia'),
+  ('a1000006-0000-4000-8000-000000000006', 'member', 'Sulay'),
+  ('a1000007-0000-4000-8000-000000000007', 'member', 'Ethan'),
+  ('a1000008-0000-4000-8000-000000000008', 'member', 'Jacob'),
+  ('a1000009-0000-4000-8000-000000000009', 'member', 'Dolev'),
+  ('a1000010-0000-4000-8000-000000000010', 'member', 'Shalom')
 ON CONFLICT (id) DO NOTHING;
 
 -- Shared client profiles (hours, retainer, contacts) — synced across team

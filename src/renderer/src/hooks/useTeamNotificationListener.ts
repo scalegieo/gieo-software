@@ -30,8 +30,10 @@ export function useTeamNotificationListener(): void {
             profiles: getProfileById(row.user_id) ?? null
           })
 
+          const businessLabel = mapped.business === 'python' ? 'Python' : 'GIEO'
+
           if (mapped.message_type === 'system') {
-            void showDesktopNotification('GIEO', mapped.content)
+            void showDesktopNotification(businessLabel, mapped.content)
             return
           }
 
@@ -39,7 +41,7 @@ export function useTeamNotificationListener(): void {
 
           const author = mapped.profile?.name ?? getProfileById(row.user_id)?.name ?? 'Team'
           void showDesktopNotification(
-            `${author} in Team Chat`,
+            `${author} · ${businessLabel} chat`,
             mapped.content.length > 120 ? `${mapped.content.slice(0, 117)}…` : mapped.content
           )
         }

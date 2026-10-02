@@ -144,6 +144,7 @@ export interface ScrapedLead {
   status: 'new' | 'contacted' | 'qualified' | 'converted' | 'dead'
   notes: string
   scraped_at: string
+  business?: BusinessId
 }
 
 export interface TeamMemberMetrics {
@@ -288,6 +289,7 @@ export interface WhiteboardItem {
   target_id: string | null
   created_at: string
   updated_at: string
+  business?: BusinessId
 }
 
 export interface Message {
@@ -298,6 +300,7 @@ export interface Message {
   task_id?: string | null
   message_type?: 'user' | 'system'
   profile?: Profile
+  business?: BusinessId
 }
 
 export const LEAD_STAGES: { id: LeadStage; label: string; color: string }[] = [

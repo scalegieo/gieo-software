@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Plus, Trash2, Link2, Move, MousePointer2, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
+import { inBusiness } from '@/lib/workspace'
 import { getProfileById } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -54,8 +55,9 @@ function clampZoom(value: number): number {
 
 export function Whiteboard(): JSX.Element {
   const {
-    whiteboardItems,
-    whiteboardConnections,
+    whiteboardItems: allWhiteboardItems,
+    whiteboardConnections: allWhiteboardConnections,
+    activeBusiness,
     fetchWhiteboard,
     subscribeWhiteboard,
     addWhiteboardNote,
@@ -81,6 +83,11 @@ export function Whiteboard(): JSX.Element {
     return unsub
   }, [fetchWhiteboard, subscribeWhiteboard])
 
+  const whiteboardItems = allWhiteboardItems.filter((i) => inBusiness(activeBusiness, i))
+  const visibleIds = new Set(whiteboardItems.map((i) => i.id))
+  const whiteboardConnections = allWhiteboardConnections.filter(
+    (c) => visibleIds.has(c.from_id) && visibleIds.has(c.to_id)
+  )
   const notes = whiteboardItems.filter((i) => i.type === 'note')
 
   const canvasTransform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`

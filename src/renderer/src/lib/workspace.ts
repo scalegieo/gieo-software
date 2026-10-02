@@ -25,8 +25,12 @@ export function tasksFor(business: BusinessId, tasks: Task[], clients: Client[])
   return tasks.filter((t) => taskBusiness(t, clients) === business)
 }
 
+export function inBusiness(business: BusinessId, row: { business?: BusinessId }): boolean {
+  return (row.business === 'python' ? 'python' : 'gieo') === business
+}
+
 export function leadsFor(business: BusinessId, leads: Lead[]): Lead[] {
-  return leads.filter((l) => (l.business === 'python' ? 'python' : 'gieo') === business)
+  return leads.filter((l) => inBusiness(business, l))
 }
 
 export function byClientIds<T extends { client_id: string }>(rows: T[], clients: Client[]): T[] {

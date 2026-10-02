@@ -44,9 +44,11 @@ Then open the app normally.
 | Username | Password |
 |----------|----------|
 | reda | gieo1 |
-| yoni | gieo2 |
-| yeab | gieo3 |
-| natu | gieo4 |
+| sulay | gieo2 |
+| ethan | gieo3 |
+| jacob | gieo4 |
+| dolev | gieo5 |
+| shalom | gieo6 |
 | lydia | gieo5 |
 
 Internet required — the app syncs clients, hours, tasks, and chat with the team.

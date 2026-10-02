@@ -14,19 +14,29 @@ export const GIEO_USERS: GieoUser[] = [
     profile: { id: 'a1000001-0000-4000-8000-000000000001', role: 'admin', name: 'Reda' }
   },
   {
-    username: 'yoni',
+    username: 'sulay',
     password: 'gieo2',
-    profile: { id: 'a1000002-0000-4000-8000-000000000002', role: 'media_buyer', name: 'Yoni' }
+    profile: { id: 'a1000006-0000-4000-8000-000000000006', role: 'member', name: 'Sulay' }
   },
   {
-    username: 'yeab',
+    username: 'ethan',
     password: 'gieo3',
-    profile: { id: 'a1000003-0000-4000-8000-000000000003', role: 'sales', name: 'Yeab' }
+    profile: { id: 'a1000007-0000-4000-8000-000000000007', role: 'member', name: 'Ethan' }
   },
   {
-    username: 'natu',
+    username: 'jacob',
     password: 'gieo4',
-    profile: { id: 'a1000004-0000-4000-8000-000000000004', role: 'ops', name: 'Natu' }
+    profile: { id: 'a1000008-0000-4000-8000-000000000008', role: 'member', name: 'Jacob' }
+  },
+  {
+    username: 'dolev',
+    password: 'gieo5',
+    profile: { id: 'a1000009-0000-4000-8000-000000000009', role: 'member', name: 'Dolev' }
+  },
+  {
+    username: 'shalom',
+    password: 'gieo6',
+    profile: { id: 'a1000010-0000-4000-8000-000000000010', role: 'member', name: 'Shalom' }
   },
   {
     username: 'lydia',

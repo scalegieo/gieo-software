@@ -203,7 +203,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       content,
       created_at: new Date().toISOString(),
       message_type: 'system',
-      profile: profile ?? undefined
+      profile: profile ?? undefined,
+      business: get().activeBusiness
     }
     set({ messages: [...get().messages, optimistic], chatOpen: true })
     if (notify) showDesktopNotification('GIEO', content)
@@ -211,7 +212,7 @@ export const useStore = create<GieoStore>((set, get) => ({
     void (async () => {
       const { data, error } = await supabase
         .from('messages')
-        .insert({ user_id: userId, content, message_type: 'system' })
+        .insert({ user_id: userId, content, message_type: 'system', business: optimistic.business })
         .select('*, profiles(id, role, name)')
         .single()
 
@@ -432,7 +433,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       created_at: new Date().toISOString(),
       task_id: taskId,
       profile,
-      message_type: 'user'
+      message_type: 'user',
+      business: get().activeBusiness
     }
     set({ messages: [...get().messages, optimistic] })
 
@@ -442,7 +444,8 @@ export const useStore = create<GieoStore>((set, get) => ({
         user_id: profile.id,
         content,
         task_id: taskId,
-        message_type: 'user'
+        message_type: 'user',
+        business: optimistic.business
       })
       .select('*, profiles(id, role, name)')
       .single()
@@ -724,7 +727,8 @@ export const useStore = create<GieoStore>((set, get) => ({
     const lead: ScrapedLead = {
       ...input,
       id: `scr-${Date.now()}`,
-      scraped_at: new Date().toISOString()
+      scraped_at: new Date().toISOString(),
+      business: get().activeBusiness
     }
     const next = [lead, ...get().scrapedLeads]
     set({ scrapedLeads: next })
@@ -745,7 +749,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       name: scraped.name,
       mrr,
       email: scraped.email,
-      phone: scraped.phone
+      phone: scraped.phone,
+      business: scraped.business ?? 'gieo'
     })
     if (!result.error) {
       get().updateScrapedLead(scrapedId, { status: 'converted' })
@@ -796,7 +801,8 @@ export const useStore = create<GieoStore>((set, get) => ({
         merged.push({
           ...row,
           id: `scr-sheet-${Date.now()}-${imported}`,
-          scraped_at: new Date().toISOString()
+          scraped_at: new Date().toISOString(),
+          business: 'gieo'
         })
         imported++
       }
@@ -848,7 +854,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       color: 'amber',
       target_id: null,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      business: get().activeBusiness
     }
 
     const next = [...get().whiteboardItems, item]

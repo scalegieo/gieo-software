@@ -13,10 +13,12 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useStore } from '@/store/useStore'
+import { inBusiness } from '@/lib/workspace'
 import { CONFIG } from '@/lib/config'
 
 export function LeadSheet(): JSX.Element {
-  const { scrapedLeads, updateScrapedLead, addScrapedLead, convertScrapedLeadToClient, syncLeadSheetFromGoogle } = useStore()
+  const { scrapedLeads: allScrapedLeads, activeBusiness, updateScrapedLead, addScrapedLead, convertScrapedLeadToClient, syncLeadSheetFromGoogle } = useStore()
+  const scrapedLeads = allScrapedLeads.filter((l) => inBusiness(activeBusiness, l))
   const [convertId, setConvertId] = useState<string | null>(null)
   const [mrrInput, setMrrInput] = useState('5000')
   const [addOpen, setAddOpen] = useState(false)

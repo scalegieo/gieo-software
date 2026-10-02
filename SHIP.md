@@ -49,9 +49,11 @@ Go to **[github.com/scalegieo/gieo-software/releases](https://github.com/scalegi
 | Username | Password |
 |----------|----------|
 | reda | gieo1 |
-| yoni | gieo2 |
-| yeab | gieo3 |
-| natu | gieo4 |
+| sulay | gieo2 |
+| ethan | gieo3 |
+| jacob | gieo4 |
+| dolev | gieo5 |
+| shalom | gieo6 |
 | lydia | gieo5 |
 
 ### 4. Start using real data
@@ -75,6 +77,7 @@ In [Supabase SQL editor](https://supabase.com/dashboard), run **in order**:
 4. `supabase/migration-v4.sql`
 5. `supabase/migration-v5.sql` ← **client hours/profiles sync**
 6. `supabase/migration-v6.sql` ← **GIEO / Python workspaces (clients, tasks, leads)**
+7. `supabase/migration-v7.sql` ← **new team logins + separate chat & whiteboard**
 
 Enable **Realtime** on: `messages`, `whiteboard_items`
 

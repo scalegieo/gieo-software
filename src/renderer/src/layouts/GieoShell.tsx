@@ -33,7 +33,7 @@ import { NotificationsPanel } from '@/components/NotificationsPanel'
 import { OllamaBootIndicator } from '@/components/OllamaBootIndicator'
 import { useTeamNotificationListener } from '@/hooks/useTeamNotificationListener'
 import { Input } from '@/components/ui/input'
-import { GieoLogo } from '@/components/GieoLogo'
+import { BusinessLogo } from '@/components/BusinessLogo'
 import { PageWatermark } from '@/components/PageWatermark'
 
 const navItems = [
@@ -76,7 +76,7 @@ export function GieoShell(): JSX.Element {
       <aside className="relative z-10 flex w-56 shrink-0 flex-col liquid-glass-sidebar">
         <div className="flex h-[7.5rem] w-full shrink-0 flex-col border-b border-zinc-800 px-2 pb-3 pt-9">
           <div className="flex min-h-0 flex-1 w-full items-center overflow-hidden">
-            <GieoLogo fill className="origin-left scale-[2.1]" />
+            <BusinessLogo />
           </div>
         </div>
 

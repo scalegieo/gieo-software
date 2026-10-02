@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { useStore } from '@/store/useStore'
 import { useWorkspace } from '@/hooks/useWorkspace'
-import { getProfileById } from '@/lib/auth'
+import { getProfileById, GIEO_USERS } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { CreateTaskDialog } from '@/components/CreateTaskDialog'
@@ -153,7 +153,7 @@ export function Tasks(): JSX.Element {
         <Card className="bg-zinc-900/50">
           <CardHeader>
             <CardTitle className="text-base">All Team Tasks</CardTitle>
-            <CardDescription>Reda · Yoni · Yeab · Natu · Lydia</CardDescription>
+            <CardDescription>{GIEO_USERS.map((u) => u.profile.name).join(' · ')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 max-h-[520px] overflow-y-auto">
             {tasks.length === 0 ? (
