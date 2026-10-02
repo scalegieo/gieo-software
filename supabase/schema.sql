@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS clients (
   name TEXT,
   company TEXT,
   stripe_customer_id TEXT,
+  business TEXT NOT NULL DEFAULT 'gieo',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

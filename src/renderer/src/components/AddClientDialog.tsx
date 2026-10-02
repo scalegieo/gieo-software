@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -9,16 +9,18 @@ import {
   DialogDescription
 } from '@/components/ui/dialog'
 import { useStore } from '@/store/useStore'
-import { SERVICE_OPTIONS } from '@/lib/types'
+import { SERVICE_OPTIONS, BUSINESSES, type BusinessId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface AddClientDialogProps {
   open: boolean
   onClose: () => void
+  defaultBusiness?: BusinessId
 }
 
-export function AddClientDialog({ open, onClose }: AddClientDialogProps): JSX.Element {
+export function AddClientDialog({ open, onClose, defaultBusiness = 'gieo' }: AddClientDialogProps): JSX.Element {
   const addClient = useStore((s) => s.addClient)
+  const [business, setBusiness] = useState<BusinessId>(defaultBusiness)
   const [company, setCompany] = useState('')
   const [contactName, setContactName] = useState('')
   const [email, setEmail] = useState('')
@@ -27,6 +29,10 @@ export function AddClientDialog({ open, onClose }: AddClientDialogProps): JSX.El
   const [services, setServices] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (open) setBusiness(defaultBusiness)
+  }, [open, defaultBusiness])
 
   const reset = (): void => {
     setCompany('')
@@ -61,7 +67,8 @@ export function AddClientDialog({ open, onClose }: AddClientDialogProps): JSX.El
       mrr: Number.isFinite(mrrCents) ? mrrCents : 0,
       email: email.trim(),
       phone: phone.trim(),
-      services
+      services,
+      business
     })
 
     setSaving(false)
@@ -85,6 +92,27 @@ export function AddClientDialog({ open, onClose }: AddClientDialogProps): JSX.El
         </DialogHeader>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-500">Business</label>
+            <div className="flex gap-2">
+              {BUSINESSES.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBusiness(b.id)}
+                  className={cn(
+                    'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                    business === b.id
+                      ? 'border-violet-500/40 bg-violet-500/10 text-violet-200'
+                      : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'
+                  )}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs font-medium text-zinc-500">Company *</label>

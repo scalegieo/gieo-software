@@ -22,6 +22,17 @@ export interface OnboardingItem {
   completed: boolean
 }
 
+export type BusinessId = 'gieo' | 'python'
+
+export const BUSINESSES: { id: BusinessId; label: string }[] = [
+  { id: 'gieo', label: 'GIEO' },
+  { id: 'python', label: 'Python' }
+]
+
+export function clientBusiness(client: Pick<Client, 'business'>): BusinessId {
+  return client.business === 'python' ? 'python' : 'gieo'
+}
+
 export interface Client {
   id: string
   lead_id: string | null
@@ -29,6 +40,7 @@ export interface Client {
   status: string
   name?: string
   company?: string
+  business?: BusinessId
   created_at?: string
 }
 

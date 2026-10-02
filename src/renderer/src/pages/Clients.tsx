@@ -26,7 +26,7 @@ import { ClientProfilePanel } from '@/components/ClientProfilePanel'
 import { ClientHoursBillingPanel } from '@/components/ClientHoursBillingPanel'
 import { AddClientDialog } from '@/components/AddClientDialog'
 import { useStore } from '@/store/useStore'
-import { formatCurrency, slugify } from '@/lib/types'
+import { formatCurrency, slugify, BUSINESSES, clientBusiness, type BusinessId } from '@/lib/types'
 import { formatDate, cn } from '@/lib/utils'
 import { getTotalHours, computeNextBillingDate, getBillingReminder } from '@/lib/retainerBilling'
 import type { Client } from '@/lib/types'
@@ -354,11 +354,27 @@ function ClientDetailDialog({
   )
 }
 
+const PORTAL_KEY = 'gieo_client_portal'
+
 export function Clients(): JSX.Element {
-  const { clients, clientProfiles, getClientProfile, setActiveClient } = useStore()
+  const { clients: allClients, clientProfiles, getClientProfile, setActiveClient } = useStore()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [portal, setPortal] = useState<BusinessId>(
+    () => (localStorage.getItem(PORTAL_KEY) === 'python' ? 'python' : 'gieo')
+  )
+
+  const switchPortal = (next: BusinessId): void => {
+    setPortal(next)
+    localStorage.setItem(PORTAL_KEY, next)
+  }
+
+  const clients = allClients.filter((c) => clientBusiness(c) === portal)
+  const portalLabel = BUSINESSES.find((b) => b.id === portal)?.label ?? 'GIEO'
+  const portalMrr = clients
+    .filter((c) => c.status === 'active')
+    .reduce((sum, c) => sum + c.mrr, 0)
 
   const openClient = (client: Client): void => {
     getClientProfile(client.id)
@@ -371,15 +387,35 @@ export function Clients(): JSX.Element {
     <div className="relative z-10 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Client Hub</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Client Hub · {portalLabel}</h1>
           <p className="text-sm text-zinc-400 mt-0.5">
-            {clients.length} accounts · {clients.filter((c) => c.status === 'active').length} active · hours & retainer billing
+            {clients.length} accounts · {clients.filter((c) => c.status === 'active').length} active · {formatCurrency(portalMrr)}/mo MRR
           </p>
         </div>
         <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
-          Add Client
+          Add {portalLabel} Client
         </Button>
+      </div>
+
+      <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-950/60 p-1">
+        {BUSINESSES.map((b) => {
+          const count = allClients.filter((c) => clientBusiness(c) === b.id).length
+          return (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => switchPortal(b.id)}
+              className={cn(
+                'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+                portal === b.id ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              {b.label}
+              <span className="ml-1.5 text-xs text-zinc-500 tabular-nums">{count}</span>
+            </button>
+          )
+        })}
       </div>
 
       <Card className="bg-zinc-900/50 overflow-hidden border-zinc-800">
@@ -466,7 +502,7 @@ export function Clients(): JSX.Element {
         }}
       />
 
-      <AddClientDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddClientDialog open={addOpen} onClose={() => setAddOpen(false)} defaultBusiness={portal} />
     </div>
   )
 }

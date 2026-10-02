@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type {
   Profile, Lead, Client, Campaign, Task, Message, Financial,
   ClientProfile, ScrapedLead, TeamMemberMetrics, CelebrationState, LeadStage,
-  TaskPriority, WhiteboardItem, WhiteboardConnection
+  TaskPriority, WhiteboardItem, WhiteboardConnection, BusinessId
 } from '@/lib/types'
 import { DEFAULT_ONBOARDING, DEFAULT_CLOSE_CHECKLIST, formatCurrency } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
@@ -96,6 +96,7 @@ interface GieoStore {
     email?: string
     phone?: string
     services?: string[]
+    business?: BusinessId
   }) => Promise<{ error?: string; clientId?: string }>
   getClientProfile: (clientId: string) => ClientProfile
   updateClientProfile: (clientId: string, profile: ClientProfile) => void
@@ -465,6 +466,7 @@ export const useStore = create<GieoStore>((set, get) => ({
 
   addClient: async (input) => {
     const clientId = crypto.randomUUID()
+    const business = input.business ?? 'gieo'
     const newClient: Client = {
       id: clientId,
       lead_id: null,
@@ -472,6 +474,7 @@ export const useStore = create<GieoStore>((set, get) => ({
       status: 'active',
       name: input.name,
       company: input.company,
+      business,
       created_at: new Date().toISOString()
     }
 
@@ -495,7 +498,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       mrr: input.mrr,
       status: 'active',
       name: input.name,
-      company: input.company
+      company: input.company,
+      business
     })
     if (error) {
       set({
