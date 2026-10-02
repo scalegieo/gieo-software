@@ -1,4 +1,5 @@
-import { formatCurrency, formatCompactCurrency, LEAD_STAGES } from '@/lib/types'
+import { formatCurrency, formatCompactCurrency, LEAD_STAGES, BUSINESSES } from '@/lib/types'
+import type { WorkspaceData } from '@/lib/workspace'
 import type {
   Profile,
   Client,
@@ -21,6 +22,7 @@ import {
 import { fridayVoiceRules, getFirstName } from '@/lib/fridayVoice'
 
 interface StoreSnapshot {
+  workspaceLabel?: string
   profile: Profile | null
   clients: Client[]
   leads: Lead[]
@@ -116,7 +118,8 @@ export function buildFullPlatformContext(state: StoreSnapshot, currentPage = 'Da
 
 You are FRIDAY — built into GIEO CRM on ${firstName}'s machine. LIVE data below is real and current.
 Current screen: ${currentPage}
-Answer from GIEO data only. Quote exact numbers from SNAPSHOT.
+Active business workspace: ${state.workspaceLabel ?? 'GIEO'} — clients, tasks, pipeline, and numbers below belong to this business only.
+Answer from this data only. Quote exact numbers from SNAPSHOT.
 
 === LOGGED IN ===
 ${firstName} (${role}) — address them as ${firstName} when natural.
@@ -180,17 +183,20 @@ export function storeSnapshotFromEngine(store: {
   getAgencyHoursThisMonth: () => number
   getAgencyTotalHours: () => number
   getUpcomingBillingReminders: (withinDays?: number) => import('@/lib/retainerBilling').BillingReminder[]
+  getWorkspace?: () => WorkspaceData
 }): StoreSnapshot {
+  const ws = store.getWorkspace?.()
   return {
+    workspaceLabel: BUSINESSES.find((b) => b.id === ws?.business)?.label,
     profile: store.profile,
-    clients: store.clients,
-    leads: store.leads,
-    campaigns: store.campaigns,
-    tasks: store.tasks,
-    clientProfiles: store.clientProfiles,
+    clients: ws?.clients ?? store.clients,
+    leads: ws?.leads ?? store.leads,
+    campaigns: ws?.campaigns ?? store.campaigns,
+    tasks: ws?.tasks ?? store.tasks,
+    clientProfiles: ws?.clientProfiles ?? store.clientProfiles,
     scrapedLeads: store.scrapedLeads,
     teamMetrics: store.teamMetrics,
-    financials: store.financials,
+    financials: ws?.financials ?? store.financials,
     whiteboardItems: store.whiteboardItems,
     getTotalMRR: store.getTotalMRR,
     getTotalAdSpend: store.getTotalAdSpend,

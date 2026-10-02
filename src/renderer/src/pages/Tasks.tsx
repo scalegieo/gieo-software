@@ -8,6 +8,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useStore } from '@/store/useStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { getProfileById } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -16,7 +17,8 @@ import { CreateTaskDialog } from '@/components/CreateTaskDialog'
 const STATUSES = ['todo', 'in_progress', 'done', 'overdue'] as const
 
 export function Tasks(): JSX.Element {
-  const { tasks, profile, clients, updateTaskStatus, activeTaskId, setActiveTask } = useStore()
+  const { tasks, clients } = useWorkspace()
+  const { profile, updateTaskStatus, activeTaskId, setActiveTask } = useStore()
   const highlightRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS leads (
   company TEXT NOT NULL,
   stage TEXT NOT NULL DEFAULT 'new',
   value INT NOT NULL DEFAULT 0,
+  business TEXT NOT NULL DEFAULT 'gieo',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -55,7 +56,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   title TEXT NOT NULL,
   due_date TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'todo',
-  priority TEXT NOT NULL DEFAULT 'medium'
+  priority TEXT NOT NULL DEFAULT 'medium',
+  business TEXT NOT NULL DEFAULT 'gieo'
 );
 
 CREATE TABLE IF NOT EXISTS messages (

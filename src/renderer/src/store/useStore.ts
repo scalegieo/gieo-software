@@ -4,7 +4,7 @@ import type {
   ClientProfile, ScrapedLead, TeamMemberMetrics, CelebrationState, LeadStage,
   TaskPriority, WhiteboardItem, WhiteboardConnection, BusinessId
 } from '@/lib/types'
-import { DEFAULT_ONBOARDING, DEFAULT_CLOSE_CHECKLIST, formatCurrency } from '@/lib/types'
+import { DEFAULT_ONBOARDING, DEFAULT_CLOSE_CHECKLIST, formatCurrency, clientBusiness } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 import { validateCredentials, saveSession, loadSession, clearSession, GIEO_USERS, getProfileById } from '@/lib/auth'
 import { mapDbMessage } from '@/lib/messages'
@@ -22,8 +22,13 @@ import { parseLeadSheetCsv } from '@/lib/googleSheet'
 import { syncClientProfilesFromRemote, upsertClientProfileRemote } from '@/lib/clientProfilesSync'
 import { getUpcomingBillings, getAgencyHoursThisMonth, getAgencyTotalHours, type BillingReminder } from '@/lib/retainerBilling'
 import { normalizeClientProfile } from '@/lib/clientProfiles'
+import { loadActiveBusiness, saveActiveBusiness, workspaceData, type WorkspaceData } from '@/lib/workspace'
 
 interface GieoStore {
+  activeBusiness: BusinessId
+  setActiveBusiness: (business: BusinessId) => void
+  getWorkspace: () => WorkspaceData
+
   profile: Profile | null
   isAuthenticated: boolean
   isLoading: boolean
@@ -137,6 +142,23 @@ interface GieoStore {
 export type { GieoStore }
 
 export const useStore = create<GieoStore>((set, get) => ({
+  activeBusiness: loadActiveBusiness(),
+  setActiveBusiness: (business) => {
+    saveActiveBusiness(business)
+    set({ activeBusiness: business, activeClientId: null, activeTaskId: null })
+  },
+  getWorkspace: () => {
+    const s = get()
+    return workspaceData(s.activeBusiness, {
+      clients: s.clients,
+      tasks: s.tasks,
+      leads: s.leads,
+      campaigns: s.campaigns,
+      financials: s.financials,
+      clientProfiles: s.clientProfiles
+    })
+  },
+
   profile: null,
   isAuthenticated: false,
   isLoading: true,
@@ -466,7 +488,7 @@ export const useStore = create<GieoStore>((set, get) => ({
 
   addClient: async (input) => {
     const clientId = crypto.randomUUID()
-    const business = input.business ?? 'gieo'
+    const business = input.business ?? get().activeBusiness
     const newClient: Client = {
       id: clientId,
       lead_id: null,
@@ -603,6 +625,7 @@ export const useStore = create<GieoStore>((set, get) => ({
 
   createTask: async (input) => {
     const id = crypto.randomUUID()
+    const taskClient = input.client_id ? get().clients.find((c) => c.id === input.client_id) : undefined
     const task: Task = {
       id,
       title: input.title,
@@ -610,7 +633,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       client_id: input.client_id ?? null,
       priority: input.priority ?? 'medium',
       due_date: input.due_date ?? null,
-      status: input.status ?? 'todo'
+      status: input.status ?? 'todo',
+      business: taskClient ? clientBusiness(taskClient) : get().activeBusiness
     }
 
     set({ tasks: [task, ...get().tasks] })
@@ -622,7 +646,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       client_id: task.client_id,
       due_date: task.due_date,
       status: task.status,
-      priority: task.priority
+      priority: task.priority,
+      business: task.business
     })
     if (error) {
       set({ tasks: get().tasks.filter((t) => t.id !== id) })
@@ -649,7 +674,7 @@ export const useStore = create<GieoStore>((set, get) => ({
   getPendingTaskCount: () => {
     const profileId = get().profile?.id
     if (!profileId) return 0
-    return get().tasks.filter(
+    return get().getWorkspace().tasks.filter(
       (t) => t.assignee_id === profileId && t.status !== 'done'
     ).length
   },
@@ -954,12 +979,15 @@ export const useStore = create<GieoStore>((set, get) => ({
     })
   },
 
-  getTotalMRR: () => get().clients.filter((c) => c.status === 'active').reduce((sum, c) => sum + c.mrr, 0),
-  getTotalAdSpend: () => get().campaigns.reduce((sum, c) => sum + c.spend, 0),
-  getActiveClientCount: () => get().clients.filter((c) => c.status === 'active').length,
-  getTotalClientCount: () => get().clients.length,
-  getAgencyHoursThisMonth: () => getAgencyHoursThisMonth(get().clientProfiles),
-  getAgencyTotalHours: () => getAgencyTotalHours(get().clientProfiles),
-  getUpcomingBillingReminders: (withinDays = 14) =>
-    getUpcomingBillings(get().clients, get().clientProfiles, withinDays)
+  getTotalMRR: () =>
+    get().getWorkspace().clients.filter((c) => c.status === 'active').reduce((sum, c) => sum + c.mrr, 0),
+  getTotalAdSpend: () => get().getWorkspace().campaigns.reduce((sum, c) => sum + c.spend, 0),
+  getActiveClientCount: () => get().getWorkspace().clients.filter((c) => c.status === 'active').length,
+  getTotalClientCount: () => get().getWorkspace().clients.length,
+  getAgencyHoursThisMonth: () => getAgencyHoursThisMonth(get().getWorkspace().clientProfiles),
+  getAgencyTotalHours: () => getAgencyTotalHours(get().getWorkspace().clientProfiles),
+  getUpcomingBillingReminders: (withinDays = 14) => {
+    const ws = get().getWorkspace()
+    return getUpcomingBillings(ws.clients, ws.clientProfiles, withinDays)
+  }
 }))

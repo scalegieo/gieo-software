@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useStore } from '@/store/useStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { LEAD_STAGES, type Lead, type LeadStage, formatCurrency } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -142,7 +143,8 @@ function OnboardingPanel({ lead }: { lead: Lead }): JSX.Element {
 }
 
 export function CRM(): JSX.Element {
-  const { leads, updateLeadStage } = useStore()
+  const { leads } = useWorkspace()
+  const updateLeadStage = useStore((s) => s.updateLeadStage)
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
 
   const sensors = useSensors(

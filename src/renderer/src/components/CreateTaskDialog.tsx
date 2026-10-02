@@ -10,11 +10,13 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import { useStore } from '@/store/useStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { GIEO_USERS } from '@/lib/auth'
 import type { TaskPriority } from '@/lib/types'
 
 export function CreateTaskDialog(): JSX.Element {
-  const { createTask, clients } = useStore()
+  const createTask = useStore((s) => s.createTask)
+  const { clients } = useWorkspace()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [assigneeId, setAssigneeId] = useState('')

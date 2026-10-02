@@ -1,11 +1,11 @@
 import { Trophy } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { useStore } from '@/store/useStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { computeTeamLiveStats } from '@/lib/teamStats'
 import { formatCompactCurrency } from '@/lib/types'
 
 export function TeamPerformance(): JSX.Element {
-  const { clients, clientProfiles, tasks } = useStore()
+  const { clients, clientProfiles, tasks } = useWorkspace()
   const stats = computeTeamLiveStats(clients, clientProfiles, tasks)
 
   return (

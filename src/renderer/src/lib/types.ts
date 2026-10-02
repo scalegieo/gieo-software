@@ -12,6 +12,7 @@ export interface Lead {
   value: number
   created_at: string
   onboarding_checklist?: OnboardingItem[]
+  business?: BusinessId
 }
 
 export type LeadStage = 'new' | 'contacted' | 'meeting' | 'won' | 'lost'
@@ -263,6 +264,7 @@ export interface Task {
   due_date: string | null
   status: string
   priority?: TaskPriority
+  business?: BusinessId
 }
 
 export interface WhiteboardConnection {

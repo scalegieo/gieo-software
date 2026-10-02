@@ -74,7 +74,7 @@ In [Supabase SQL editor](https://supabase.com/dashboard), run **in order**:
 3. `supabase/migration-v3.sql`
 4. `supabase/migration-v4.sql`
 5. `supabase/migration-v5.sql` ← **client hours/profiles sync**
-6. `supabase/migration-v6.sql` ← **GIEO / Python client portals**
+6. `supabase/migration-v6.sql` ← **GIEO / Python workspaces (clients, tasks, leads)**
 
 Enable **Realtime** on: `messages`, `whiteboard_items`
 

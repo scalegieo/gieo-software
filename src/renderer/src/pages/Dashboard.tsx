@@ -12,18 +12,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useStore } from '@/store/useStore'
-import { formatCompactCurrency, formatCurrency } from '@/lib/types'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { formatCompactCurrency, formatCurrency, BUSINESSES } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { DashboardCalendarWidget } from '@/components/DashboardCalendarWidget'
 
 export function Dashboard(): JSX.Element {
+  const { tasks, leads, clients, campaigns, business } = useWorkspace()
   const {
-    tasks,
-    leads,
     profile,
-    clients,
-    campaigns,
     updateTaskStatus,
     getTotalMRR,
     getTotalAdSpend,
@@ -119,7 +117,9 @@ export function Dashboard(): JSX.Element {
   return (
     <div className="relative z-10 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-xl font-semibold tracking-tight">
+          {BUSINESSES.find((b) => b.id === business)?.label} Dashboard
+        </h1>
         <p className="text-sm text-zinc-400 mt-0.5">
           {totalClients} clients · {formatCompactCurrency(totalMRR)} MRR · {hoursThisMonth}h logged this month
         </p>

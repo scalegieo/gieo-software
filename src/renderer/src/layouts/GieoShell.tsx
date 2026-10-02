@@ -13,6 +13,7 @@ import {
   CalendarDays
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { BUSINESSES, clientBusiness } from '@/lib/types'
 import { useStore } from '@/store/useStore'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -57,7 +58,10 @@ export function GieoShell(): JSX.Element {
     setChatOpen,
     setAiSidebarOpen,
     signOut,
-    getPendingTaskCount
+    getPendingTaskCount,
+    activeBusiness,
+    setActiveBusiness,
+    clients
   } = useStore()
 
   const pendingTasks = getPendingTaskCount()
@@ -127,8 +131,30 @@ export function GieoShell(): JSX.Element {
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between liquid-glass-header px-4">
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <GieoLogo variant="icon" iconClassName="h-5 w-5 hidden sm:block" />
+          <div className="flex items-center gap-3 text-sm text-zinc-400">
+            <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-950/70 p-0.5">
+              {BUSINESSES.map((b) => {
+                const count = clients.filter((c) => clientBusiness(c) === b.id).length
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setActiveBusiness(b.id)}
+                    className={cn(
+                      'rounded-md px-3.5 py-1 text-sm font-medium transition-colors',
+                      activeBusiness === b.id
+                        ? 'bg-zinc-100 text-zinc-950'
+                        : 'text-zinc-500 hover:text-zinc-200'
+                    )}
+                  >
+                    {b.label}
+                    <span className={cn('ml-1.5 text-[11px] tabular-nums', activeBusiness === b.id ? 'text-zinc-500' : 'text-zinc-600')}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
             <ChevronRight className="h-3.5 w-3.5" />
             <span className="text-zinc-100">{currentPage}</span>
           </div>

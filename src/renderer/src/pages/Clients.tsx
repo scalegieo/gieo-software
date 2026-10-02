@@ -26,7 +26,8 @@ import { ClientProfilePanel } from '@/components/ClientProfilePanel'
 import { ClientHoursBillingPanel } from '@/components/ClientHoursBillingPanel'
 import { AddClientDialog } from '@/components/AddClientDialog'
 import { useStore } from '@/store/useStore'
-import { formatCurrency, slugify, BUSINESSES, clientBusiness, type BusinessId } from '@/lib/types'
+import { formatCurrency, slugify, BUSINESSES } from '@/lib/types'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { formatDate, cn } from '@/lib/utils'
 import { getTotalHours, computeNextBillingDate, getBillingReminder } from '@/lib/retainerBilling'
 import type { Client } from '@/lib/types'
@@ -354,23 +355,13 @@ function ClientDetailDialog({
   )
 }
 
-const PORTAL_KEY = 'gieo_client_portal'
-
 export function Clients(): JSX.Element {
-  const { clients: allClients, clientProfiles, getClientProfile, setActiveClient } = useStore()
+  const { clientProfiles, getClientProfile, setActiveClient } = useStore()
+  const { clients, business: portal } = useWorkspace()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
-  const [portal, setPortal] = useState<BusinessId>(
-    () => (localStorage.getItem(PORTAL_KEY) === 'python' ? 'python' : 'gieo')
-  )
 
-  const switchPortal = (next: BusinessId): void => {
-    setPortal(next)
-    localStorage.setItem(PORTAL_KEY, next)
-  }
-
-  const clients = allClients.filter((c) => clientBusiness(c) === portal)
   const portalLabel = BUSINESSES.find((b) => b.id === portal)?.label ?? 'GIEO'
   const portalMrr = clients
     .filter((c) => c.status === 'active')
@@ -396,26 +387,6 @@ export function Clients(): JSX.Element {
           <Plus className="h-3.5 w-3.5" />
           Add {portalLabel} Client
         </Button>
-      </div>
-
-      <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-950/60 p-1">
-        {BUSINESSES.map((b) => {
-          const count = allClients.filter((c) => clientBusiness(c) === b.id).length
-          return (
-            <button
-              key={b.id}
-              type="button"
-              onClick={() => switchPortal(b.id)}
-              className={cn(
-                'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
-                portal === b.id ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
-              )}
-            >
-              {b.label}
-              <span className="ml-1.5 text-xs text-zinc-500 tabular-nums">{count}</span>
-            </button>
-          )
-        })}
       </div>
 
       <Card className="bg-zinc-900/50 overflow-hidden border-zinc-800">
