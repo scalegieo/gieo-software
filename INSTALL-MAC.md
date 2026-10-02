@@ -24,11 +24,20 @@ Your friends do **not** need to clone the repo or run `npm install`. They downlo
 
 ## First launch (important)
 
-Mac may say the app is from an unidentified developer:
+The app isn't signed with a paid Apple certificate, so macOS blocks it the first time:
 
-1. **Right-click** GIEO CRM → **Open**
-2. Click **Open** in the dialog
-3. You only need to do this once
+1. Double-click **GIEO CRM** in Applications. When macOS says it can't verify the app, click **Done**
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**
+3. Next to "GIEO CRM was blocked", click **Open Anyway**, then confirm with your password
+4. You only need to do this once
+
+**If there's no "Open Anyway" button** (or it says the app is damaged), open **Terminal** and paste:
+
+```bash
+xattr -cr "/Applications/GIEO CRM.app"
+```
+
+Then open the app normally.
 
 ## Log in
 
