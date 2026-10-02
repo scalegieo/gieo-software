@@ -26,9 +26,9 @@ const ALLOWED_MODELS = new Set([
   CHAT_MODEL,
   CHAT_FALLBACK,
   AGENT_MODEL,
-  'ministral-3:3b',
-  'gemma3:4b',
-  'ministral-3:8b'
+  'gemma4:31b',
+  'gpt-oss:20b',
+  'nemotron-3-nano:30b'
 ])
 
 export interface OllamaChatUsage {
@@ -114,6 +114,7 @@ async function cloudChatRequest(
         model,
         messages,
         stream: false,
+        ...(model.startsWith('gpt-oss') ? { think: 'low' } : {}),
         options: {
           num_predict: numPredict,
           temperature: 0.55,
@@ -175,7 +176,7 @@ async function cloudChatRequest(
   }
 
   const tryKeys = async (): Promise<OllamaChatResult> => {
-    const start = API_KEYS.indexOf(getActiveCloudApiKey())
+    const start = Math.max(0, (API_KEYS as readonly string[]).indexOf(getActiveCloudApiKey()))
     for (let i = 0; i < API_KEYS.length; i++) {
       const key = API_KEYS[(start + i) % API_KEYS.length]
       const result = await doFetch(key)
@@ -207,17 +208,22 @@ async function chatWithModelFallback(
   preferAgent: boolean
 ): Promise<OllamaChatResult> {
   const primary = preferAgent ? AGENT_MODEL : CHAT_MODEL
-  const fallback = preferAgent ? CHAT_MODEL : CHAT_FALLBACK
   const usageKind = preferAgent ? 'agent' : 'chat'
+  const chain = [...new Set([primary, CHAT_FALLBACK, 'nemotron-3-nano:30b'])]
 
-  let result = await cloudChatRequest(primary, messages, numPredict, usageKind)
-  if (result.content) return result
-
-  if (result.errorCode === 'DAILY_LIMIT' || result.errorCode === 'INSUFFICIENT_TOKENS') {
-    return result
+  let result: OllamaChatResult = { error: 'No model available' }
+  for (const model of chain) {
+    result = await cloudChatRequest(model, messages, numPredict, usageKind)
+    if (result.content) return result
+    if (
+      result.errorCode === 'DAILY_LIMIT' ||
+      result.errorCode === 'INSUFFICIENT_TOKENS' ||
+      result.errorCode === 'THROTTLED' ||
+      result.errorCode === 'AUTH_FAILED'
+    ) {
+      return result
+    }
   }
-
-  result = await cloudChatRequest(fallback, messages, numPredict, usageKind)
   return result
 }
 

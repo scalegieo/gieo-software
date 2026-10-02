@@ -9,16 +9,16 @@ export const GIEO_SECRETS = {
     localHost: 'http://127.0.0.1:11434',
     cloudHost: 'https://ollama.com',
     /** Level-1 Ollama Free Cloud — lightest models, max free quota */
-    chatModel: 'ministral-3:3b',
-    chatModelFallback: 'gemma3:4b',
+    chatModel: 'gemma4:31b',
+    chatModelFallback: 'gpt-oss:20b',
     /** Same tier — efficient JSON, no paid models */
-    agentModel: 'gemma3:4b',
+    agentModel: 'gemma4:31b',
     apiKeys: [
       '7f0149ab125c4275bbe1d37baf0d0cc5.gNfE6fFSyXHC4XN2GmutbqaU',
       'a227375d6292461aaf09f00fc71d969a.L78OQZaDCqNET59c'
     ],
     freeTier: {
-      dailyTokenCap: 50_000,
+      dailyTokenCap: 150_000,
       contextWindowMax: 8192,
       maxRequestsPerMinute: 8
     },

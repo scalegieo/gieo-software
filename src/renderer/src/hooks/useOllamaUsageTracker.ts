@@ -21,10 +21,10 @@ export interface OllamaUsageSnapshot {
 
 const DEFAULT: OllamaUsageSnapshot = {
   dailyTokenCount: 0,
-  dailyTokenLimit: 50_000,
+  dailyTokenLimit: 150_000,
   chatTokenCount: 0,
   agentTokenCount: 0,
-  remaining: 50_000,
+  remaining: 150_000,
   remainingPercent: 100,
   usedPercent: 0,
   isLimitReached: false,

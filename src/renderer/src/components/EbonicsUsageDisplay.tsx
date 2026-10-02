@@ -137,7 +137,7 @@ export function OllamaFreeTierMeter({ usage }: { usage: OllamaUsageSnapshot }): 
       </div>
 
       <p className="text-[10px] text-zinc-500">
-        ~{Math.max(0, Math.floor(usage.remaining / 120))} quick chats left ·{' '}
+        ~{Math.max(0, Math.floor(usage.remaining / 1500))} quick chats left ·{' '}
         {usage.requestsInLastMinute}/8 req/min
       </p>
     </div>

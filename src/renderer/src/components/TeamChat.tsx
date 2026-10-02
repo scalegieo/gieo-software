@@ -5,15 +5,13 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { useStore } from '@/store/useStore'
-import { supabase } from '@/lib/supabase'
-import { getProfileById } from '@/lib/auth'
-import { mapDbMessage } from '@/lib/messages'
 import { inBusiness } from '@/lib/workspace'
 import { formatRelativeTime } from '@/lib/utils'
 import type { Message } from '@/lib/types'
 
 export function TeamChat(): JSX.Element {
-  const { messages, profile, sendMessage, addMessage, activeTaskId, activeBusiness } = useStore()
+  const { messages, profile, sendMessage, activeTaskId, activeBusiness, chatError, fetchMessages } =
+    useStore()
   const [input, setInput] = useState('')
   const [mode, setMode] = useState<'global' | 'task'>('global')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -27,27 +25,13 @@ export function TeamChat(): JSX.Element {
   }, [filteredMessages.length])
 
   useEffect(() => {
-    const channel = supabase
-      .channel('gieo-messages')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const row = payload.new as Message
-          addMessage(
-            mapDbMessage({
-              ...row,
-              profiles: getProfileById(row.user_id) ?? null
-            })
-          )
-        }
-      )
-      .subscribe()
+    void fetchMessages()
+  }, [fetchMessages])
 
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [addMessage])
+  const retry = (msg: Message): void => {
+    useStore.setState({ messages: useStore.getState().messages.filter((m) => m.id !== msg.id) })
+    void sendMessage(msg.content, msg.task_id ?? null)
+  }
 
   const handleSend = async (): Promise<void> => {
     const trimmed = input.trim()
@@ -104,6 +88,12 @@ export function TeamChat(): JSX.Element {
         </div>
       )}
 
+      {chatError && (
+        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-2 text-[11px] text-red-300">
+          Chat isn't syncing: {chatError}
+        </div>
+      )}
+
       <ScrollArea className="flex-1 px-4">
         <div className="space-y-3 py-4">
           {filteredMessages.length === 0 ? (
@@ -133,6 +123,15 @@ export function TeamChat(): JSX.Element {
                     </span>
                   </div>
                   <p className="text-sm text-zinc-300 pl-8 leading-relaxed">{msg.content}</p>
+                  {msg.failed && (
+                    <button
+                      type="button"
+                      className="pl-8 text-[10px] text-red-400 hover:text-red-300"
+                      onClick={() => retry(msg)}
+                    >
+                      Not sent · tap to retry
+                    </button>
+                  )}
                 </div>
               )
             )

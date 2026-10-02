@@ -8,12 +8,12 @@ export const CONFIG = {
   ollama: {
     localHost: 'http://127.0.0.1:11434',
     cloudHost: 'https://ollama.com',
-    chatModel: 'ministral-3:3b',
-    chatModelFallback: 'gemma3:4b',
-    agentModel: 'gemma3:4b',
+    chatModel: 'gemma4:31b',
+    chatModelFallback: 'gpt-oss:20b',
+    agentModel: 'gemma4:31b',
     apiKey: '7f0149ab125c4275bbe1d37baf0d0cc5.gNfE6fFSyXHC4XN2GmutbqaU',
     freeTier: {
-      dailyTokenCap: 50_000,
+      dailyTokenCap: 150_000,
       contextWindowMax: 8192,
       maxRequestsPerMinute: 8
     },

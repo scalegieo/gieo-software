@@ -7,7 +7,7 @@ import type {
 import { DEFAULT_ONBOARDING, DEFAULT_CLOSE_CHECKLIST, formatCurrency, clientBusiness } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 import { validateCredentials, saveSession, loadSession, clearSession, GIEO_USERS, getProfileById } from '@/lib/auth'
-import { mapDbMessage } from '@/lib/messages'
+import { mapDbMessage, insertMessageRow } from '@/lib/messages'
 import { loadClientProfiles, saveClientProfiles, getOrCreateProfile } from '@/lib/clientProfiles'
 import { loadScrapedLeads, saveScrapedLeads } from '@/lib/scrapedLeads'
 import {
@@ -40,6 +40,7 @@ interface GieoStore {
   tasks: Task[]
   financials: Financial[]
   messages: Message[]
+  chatError: string | null
   clientProfiles: Record<string, ClientProfile>
   scrapedLeads: ScrapedLead[]
   teamMetrics: Record<string, TeamMemberMetrics>
@@ -170,6 +171,7 @@ export const useStore = create<GieoStore>((set, get) => ({
   tasks: [],
   financials: [],
   messages: [],
+  chatError: null,
   clientProfiles: loadClientProfiles(),
   scrapedLeads: loadScrapedLeads(),
   teamMetrics: loadTeamMetrics(),
@@ -210,14 +212,15 @@ export const useStore = create<GieoStore>((set, get) => ({
     if (notify) showDesktopNotification('GIEO', content)
 
     void (async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({ user_id: userId, content, message_type: 'system', business: optimistic.business })
-        .select('*, profiles(id, role, name)')
-        .single()
+      const { data, error } = await insertMessageRow({
+        user_id: userId,
+        content,
+        message_type: 'system',
+        business: optimistic.business
+      })
 
       if (error) {
-        console.error('[GIEO] system message insert failed:', error.message)
+        console.error('[GIEO] system message insert failed:', error)
         return
       }
       if (data) {
@@ -408,17 +411,23 @@ export const useStore = create<GieoStore>((set, get) => ({
     const { data, error } = await supabase
       .from('messages')
       .select('*, profiles(id, role, name)')
-      .order('created_at', { ascending: true })
-      .limit(200)
+      .order('created_at', { ascending: false })
+      .limit(300)
 
     if (error) {
       console.error('[GIEO] fetchMessages failed:', error.message)
+      set({ chatError: error.message })
       return
     }
 
-    if (data?.length) {
-      set({ messages: data.map((row) => mapDbMessage(row as Message & { profiles?: Profile | null })) })
-    }
+    const pending = get().messages.filter((m) => m.id.startsWith('temp-'))
+    set({
+      chatError: null,
+      messages: (data ?? [])
+        .reverse()
+        .map((row) => mapDbMessage(row as Message & { profiles?: Profile | null }))
+        .concat(pending)
+    })
   },
 
   sendMessage: async (content, taskId = null) => {
@@ -438,22 +447,23 @@ export const useStore = create<GieoStore>((set, get) => ({
     }
     set({ messages: [...get().messages, optimistic] })
 
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        user_id: profile.id,
-        content,
-        task_id: taskId,
-        message_type: 'user',
-        business: optimistic.business
-      })
-      .select('*, profiles(id, role, name)')
-      .single()
+    const { data, error } = await insertMessageRow({
+      user_id: profile.id,
+      content,
+      task_id: taskId,
+      message_type: 'user',
+      business: optimistic.business
+    })
 
     if (error) {
-      console.error('[GIEO] sendMessage failed:', error.message)
+      console.error('[GIEO] sendMessage failed:', error)
+      set({
+        chatError: error,
+        messages: get().messages.map((m) => (m.id === tempId ? { ...m, failed: true } : m))
+      })
       return
     }
+    if (get().chatError) set({ chatError: null })
 
     if (data) {
       const mapped = mapDbMessage(data as Message & { profiles?: Profile | null })

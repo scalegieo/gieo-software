@@ -3,13 +3,13 @@ import { join } from 'path'
 
 /** Tracked free pool for UI + soft cap (Ollama Cloud also enforces 5h / weekly GPU limits) */
 export const OLLAMA_FREE_TIER = {
-  dailyTokenCap: 50_000,
+  dailyTokenCap: 150_000,
   sessionWindowMs: 5 * 60 * 60 * 1000,
   weeklyWindowMs: 7 * 24 * 60 * 60 * 1000,
   contextWindowMax: 8192,
   maxRequestsPerMinute: 8,
-  defaultOutputTokens: 96,
-  agentOutputTokens: 128,
+  defaultOutputTokens: 320,
+  agentOutputTokens: 256,
   historySummaryMaxTokens: 220
 } as const
 

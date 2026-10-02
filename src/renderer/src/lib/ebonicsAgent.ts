@@ -153,7 +153,11 @@ export function parseEbonicsActions(raw: string): EbonicsAction[] {
   for (const block of extractJsonBlocks(raw)) {
     try {
       const parsed = JSON.parse(block.trim()) as EbonicsAction | EbonicsAction[]
-      const list = Array.isArray(parsed) ? parsed : [parsed]
+      const list = (Array.isArray(parsed) ? parsed : [parsed]).map((a) => {
+        const nested = (a as { parameters?: object; params?: object; args?: object }) ?? {}
+        const extra = nested.parameters ?? nested.params ?? nested.args
+        return extra && typeof extra === 'object' ? ({ ...extra, ...a } as EbonicsAction) : a
+      })
       const filtered = list.filter((a) => a?.action && valid.includes(a.action))
       if (filtered.length) return filtered
     } catch {

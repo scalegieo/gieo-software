@@ -301,6 +301,7 @@ export interface Message {
   message_type?: 'user' | 'system'
   profile?: Profile
   business?: BusinessId
+  failed?: boolean
 }
 
 export const LEAD_STAGES: { id: LeadStage; label: string; color: string }[] = [

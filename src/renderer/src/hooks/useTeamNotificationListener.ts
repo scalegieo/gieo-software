@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useStore } from '@/store/useStore'
 import { getProfileById } from '@/lib/auth'
@@ -6,29 +6,30 @@ import { mapDbMessage } from '@/lib/messages'
 import { showDesktopNotification, areSystemNotificationsEnabled } from '@/lib/notifications'
 import type { Message } from '@/lib/types'
 
-/** Mac system notifications for team chat + activity while the app runs in background. */
+/** Live team chat sync + Mac system notifications, active for the whole session. */
 export function useTeamNotificationListener(): void {
-  const profile = useStore((s) => s.profile)
+  const profileId = useStore((s) => s.profile?.id)
   const chatOpen = useStore((s) => s.chatOpen)
+  const chatOpenRef = useRef(chatOpen)
+  chatOpenRef.current = chatOpen
 
   useEffect(() => {
-    if (!profile) return
+    if (!profileId) return
 
     const channel = supabase
-      .channel('gieo-system-notify')
+      .channel('gieo-team-chat')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          if (!areSystemNotificationsEnabled()) return
-
           const row = payload.new as Message
-          if (row.user_id === profile.id) return
-
           const mapped = mapDbMessage({
             ...row,
             profiles: getProfileById(row.user_id) ?? null
           })
+          useStore.getState().addMessage(mapped)
+
+          if (row.user_id === profileId || !areSystemNotificationsEnabled()) return
 
           const businessLabel = mapped.business === 'python' ? 'Python' : 'GIEO'
 
@@ -37,19 +38,21 @@ export function useTeamNotificationListener(): void {
             return
           }
 
-          if (chatOpen) return
+          if (chatOpenRef.current && document.hasFocus()) return
 
-          const author = mapped.profile?.name ?? getProfileById(row.user_id)?.name ?? 'Team'
+          const author = mapped.profile?.name ?? 'Team'
           void showDesktopNotification(
             `${author} · ${businessLabel} chat`,
             mapped.content.length > 120 ? `${mapped.content.slice(0, 117)}…` : mapped.content
           )
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') void useStore.getState().fetchMessages()
+      })
 
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [profile, chatOpen])
+  }, [profileId])
 }
