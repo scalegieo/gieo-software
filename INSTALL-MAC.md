@@ -1,16 +1,28 @@
 # Install GIEO CRM on Mac
 
-Your friends do **not** need to clone the repo or run `npm install`. They download the **`.dmg`** file and drag the app into Applications.
+Your friends do **not** need to clone the repo or run `npm install`.
 
-## Download
+## Easiest: one Terminal command (no "damaged" error)
+
+Open **Terminal** (Cmd+Space → type Terminal → Enter), paste this, press Enter:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/scalegieo/gieo-software/master/scripts/install-mac.sh | bash
+```
+
+It picks the right version for your Mac, installs it into Applications, and opens it. Run the same command again any time to update.
+
+## Manual download
+
+Only if you'd rather not use Terminal. macOS may say the app is "damaged" — that's because it isn't notarized by Apple, not because the file is broken. Fix it with the `xattr` command below.
 
 1. Open **[github.com/scalegieo/gieo-software/releases](https://github.com/scalegieo/gieo-software/releases)**
 2. Download the DMG for your Mac:
 
 | Mac type | File |
 |----------|------|
-| **Apple Silicon** (M1/M2/M3/M4) | `GIEO-CRM-1.0.0-arm64.dmg` |
-| **Intel Mac** | `GIEO-CRM-1.0.0-x64.dmg` |
+| **Apple Silicon** (M1/M2/M3/M4) | `GIEO-CRM-<version>-arm64.dmg` |
+| **Intel Mac** | `GIEO-CRM-<version>-x64.dmg` |
 
 > Not sure? Apple menu → **About This Mac** → look for "Chip" (Apple M…) or "Processor" (Intel).
 
