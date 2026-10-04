@@ -23,6 +23,8 @@ Full steps: **[INSTALL-MAC.md](./INSTALL-MAC.md)**
 | jacob | gieo4 |
 | dolev | gieo5 |
 | shalom | gieo6 |
+| daaron | gieo6 |
+| quentin | gieo7 |
 | lydia | gieo5 |
 
 ## For developers

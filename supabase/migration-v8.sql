@@ -9,7 +9,9 @@ INSERT INTO profiles (id, role, name) VALUES
   ('a1000007-0000-4000-8000-000000000007', 'member', 'Ethan'),
   ('a1000008-0000-4000-8000-000000000008', 'member', 'Jacob'),
   ('a1000009-0000-4000-8000-000000000009', 'member', 'Dolev'),
-  ('a1000010-0000-4000-8000-000000000010', 'member', 'Shalom')
+  ('a1000010-0000-4000-8000-000000000010', 'member', 'Shalom'),
+  ('a1000011-0000-4000-8000-000000000011', 'member', 'Daaron'),
+  ('a1000012-0000-4000-8000-000000000012', 'member', 'Quentin')
 ON CONFLICT (id) DO NOTHING;
 
 -- AI usage (agentic tokens)

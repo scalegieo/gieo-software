@@ -49,6 +49,8 @@ Then open the app normally.
 | jacob | gieo4 |
 | dolev | gieo5 |
 | shalom | gieo6 |
+| daaron | gieo6 |
+| quentin | gieo7 |
 | lydia | gieo5 |
 
 Internet required — the app syncs clients, hours, tasks, and chat with the team.

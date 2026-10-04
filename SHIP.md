@@ -54,6 +54,8 @@ Go to **[github.com/scalegieo/gieo-software/releases](https://github.com/scalegi
 | jacob | gieo4 |
 | dolev | gieo5 |
 | shalom | gieo6 |
+| daaron | gieo6 |
+| quentin | gieo7 |
 | lydia | gieo5 |
 
 ### 4. Start using real data

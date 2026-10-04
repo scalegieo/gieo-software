@@ -39,6 +39,16 @@ export const GIEO_USERS: GieoUser[] = [
     profile: { id: 'a1000010-0000-4000-8000-000000000010', role: 'member', name: 'Shalom' }
   },
   {
+    username: 'daaron',
+    password: 'gieo6',
+    profile: { id: 'a1000011-0000-4000-8000-000000000011', role: 'member', name: 'Daaron' }
+  },
+  {
+    username: 'quentin',
+    password: 'gieo7',
+    profile: { id: 'a1000012-0000-4000-8000-000000000012', role: 'member', name: 'Quentin' }
+  },
+  {
     username: 'lydia',
     password: 'gieo5',
     profile: { id: 'a1000005-0000-4000-8000-000000000005', role: 'creative', name: 'Lydia' }
