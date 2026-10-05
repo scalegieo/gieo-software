@@ -6,7 +6,7 @@ import {
   MessageSquare,
   ChevronRight,
   Search,
-  Sheet,
+  Radar,
   Trophy,
   PenTool,
   ListTodo,
@@ -41,7 +41,7 @@ const navItems = [
   { to: '/tasks', icon: ListTodo, label: 'Tasks' },
   { to: '/crm', icon: Kanban, label: 'CRM Pipeline' },
   { to: '/clients', icon: Users, label: 'Clients' },
-  { to: '/leads', icon: Sheet, label: 'Lead Sheet' },
+  { to: '/leads', icon: Radar, label: 'Lead Intelligence' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { to: '/whiteboard', icon: PenTool, label: 'Whiteboard' },
   { to: '/team', icon: Trophy, label: 'Team Stats' }

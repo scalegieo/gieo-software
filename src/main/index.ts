@@ -23,6 +23,11 @@ import {
   openNotificationSettings
 } from './notifications'
 
+import { startScrape, cancelScrape } from './lead-scraper'
+import { analyzeWebsite, verifyLead } from './lead-enrich'
+import { analyzeLead, generateCallScript, type LeadInput, type BusinessProfileInput, type CallScriptOptions } from './lead-ai'
+import type { ScrapeRequest, RawLead } from './lead-types'
+
 const LEAD_SHEET_CSV_URL = GIEO_SECRETS.googleSheets.csvUrl
 
 const isDev = !app.isPackaged
@@ -267,6 +272,46 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('gieo:calendar-events', async (_event, daysAhead?: number) =>
     fetchCalendarEvents(daysAhead ?? 14)
+  )
+
+  ipcMain.handle('gieo:scrape-start', async (event, req: ScrapeRequest) => {
+    const sender = event.sender
+    startScrape(req, (progress) => {
+      if (!sender.isDestroyed()) sender.send('gieo:scrape-progress', progress)
+    })
+    return { started: true }
+  })
+
+  ipcMain.handle('gieo:scrape-cancel', async (_event, jobId: string) => {
+    cancelScrape(jobId)
+    return { success: true }
+  })
+
+  ipcMain.handle('gieo:lead-reverify', async (_event, lead: RawLead) => {
+    const site = lead.website ? await analyzeWebsite(lead.website) : undefined
+    const verification = await verifyLead(lead, site)
+    return {
+      verification: { ...verification, qualityNotes: site?.qualityNotes },
+      site: site
+        ? { reachable: site.reachable, quality: site.quality, socials: site.socials, tech: site.tech, emails: site.emails, phones: site.phones }
+        : null
+    }
+  })
+
+  ipcMain.handle(
+    'gieo:lead-analyze',
+    async (_event, lead: LeadInput, profile: BusinessProfileInput) => analyzeLead(lead, profile)
+  )
+
+  ipcMain.handle(
+    'gieo:lead-call-script',
+    async (
+      _event,
+      lead: LeadInput,
+      profile: BusinessProfileInput,
+      analysis: Parameters<typeof generateCallScript>[2],
+      opts: CallScriptOptions
+    ) => generateCallScript(lead, profile, analysis, opts)
   )
 }
 

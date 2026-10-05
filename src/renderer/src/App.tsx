@@ -6,7 +6,7 @@ import { CRM } from '@/pages/CRM'
 import { Clients } from '@/pages/Clients'
 import { CompletionCelebration } from '@/components/CompletionCelebration'
 import { TeamPerformance } from '@/pages/TeamPerformance'
-import { LeadSheet } from '@/pages/LeadSheet'
+import { LeadIntelligence } from '@/pages/LeadIntelligence'
 import { Whiteboard } from '@/pages/Whiteboard'
 import { Tasks } from '@/pages/Tasks'
 import { CalendarPage } from '@/pages/Calendar'
@@ -47,7 +47,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/crm" element={<CRM />} />
           <Route path="/clients" element={<Clients />} />
-          <Route path="/leads" element={<LeadSheet />} />
+          <Route path="/leads" element={<LeadIntelligence />} />
           <Route path="/whiteboard" element={<Whiteboard />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/team" element={<TeamPerformance />} />

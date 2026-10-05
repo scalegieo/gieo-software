@@ -91,7 +91,8 @@ async function cloudChatRequest(
   model: string,
   messages: { role: string; content: string }[],
   numPredict: number,
-  usageKind: 'chat' | 'agent'
+  usageKind: 'chat' | 'agent',
+  json = false
 ): Promise<OllamaChatResult> {
   if (!ALLOWED_MODELS.has(model)) {
     return { error: `Model ${model} not allowed on free tier`, errorCode: 'MODEL_BLOCKED' }
@@ -115,9 +116,10 @@ async function cloudChatRequest(
         messages,
         stream: false,
         ...(model.startsWith('gpt-oss') ? { think: 'low' } : {}),
+        ...(json ? { format: 'json' } : {}),
         options: {
           num_predict: numPredict,
-          temperature: 0.55,
+          temperature: json ? 0.3 : 0.55,
           top_p: 0.92
         }
       }),
@@ -205,7 +207,8 @@ async function cloudChatRequest(
 async function chatWithModelFallback(
   messages: { role: string; content: string }[],
   numPredict: number,
-  preferAgent: boolean
+  preferAgent: boolean,
+  json = false
 ): Promise<OllamaChatResult> {
   const primary = preferAgent ? AGENT_MODEL : CHAT_MODEL
   const usageKind = preferAgent ? 'agent' : 'chat'
@@ -213,7 +216,7 @@ async function chatWithModelFallback(
 
   let result: OllamaChatResult = { error: 'No model available' }
   for (const model of chain) {
-    result = await cloudChatRequest(model, messages, numPredict, usageKind)
+    result = await cloudChatRequest(model, messages, numPredict, usageKind, json)
     if (result.content) return result
     if (
       result.errorCode === 'DAILY_LIMIT' ||
@@ -305,6 +308,19 @@ export async function ollamaParseAgent(
 
 export async function ollamaParseLead(userMessage: string): Promise<OllamaChatResult> {
   return ollamaParseAgent(userMessage, 'Lead Sheet')
+}
+
+/** JSON-mode request for structured features (lead intelligence). Counts toward agent usage. */
+export async function ollamaStructured(
+  messages: { role: string; content: string }[],
+  numPredict: number
+): Promise<OllamaChatResult> {
+  const ready = await ensureReady()
+  if (!ready) {
+    const boot = getOllamaBootState()
+    return { error: boot.message || 'Ollama Cloud not ready.', errorCode: boot.error ?? 'CLOUD_OFFLINE' }
+  }
+  return chatWithModelFallback(messages, numPredict, true, true)
 }
 
 export { GIEO_SECRETS, getUsageSnapshot, getOllamaBootState }

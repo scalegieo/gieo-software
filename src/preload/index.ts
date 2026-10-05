@@ -188,3 +188,19 @@ const gieoApi = {
 }
 
 contextBridge.exposeInMainWorld('gieo', gieoApi)
+
+const gieoLeadsApi = {
+  startScrape: (req: unknown): Promise<{ started: boolean }> => ipcRenderer.invoke('gieo:scrape-start', req),
+  cancelScrape: (jobId: string): Promise<{ success: boolean }> => ipcRenderer.invoke('gieo:scrape-cancel', jobId),
+  onScrapeProgress: (cb: (event: unknown) => void): (() => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, payload: unknown): void => cb(payload)
+    ipcRenderer.on('gieo:scrape-progress', listener)
+    return () => ipcRenderer.removeListener('gieo:scrape-progress', listener)
+  },
+  reverify: (lead: unknown): Promise<unknown> => ipcRenderer.invoke('gieo:lead-reverify', lead),
+  analyze: (lead: unknown, profile: unknown): Promise<unknown> => ipcRenderer.invoke('gieo:lead-analyze', lead, profile),
+  callScript: (lead: unknown, profile: unknown, analysis: unknown, opts: unknown): Promise<unknown> =>
+    ipcRenderer.invoke('gieo:lead-call-script', lead, profile, analysis, opts)
+}
+
+contextBridge.exposeInMainWorld('gieoLeads', gieoLeadsApi)
