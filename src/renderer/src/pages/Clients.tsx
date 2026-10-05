@@ -8,7 +8,8 @@ import {
   DollarSign,
   UserCircle,
   Clock,
-  CalendarClock
+  CalendarClock,
+  Trash2
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +46,22 @@ function statusVariant(status: string): 'success' | 'warning' | 'destructive' | 
   return map[status] ?? 'secondary'
 }
 
+function useDeleteClient(): (client: Client) => Promise<boolean> {
+  const deleteClient = useStore((s) => s.deleteClient)
+  return async (client) => {
+    const name = client.company ?? client.name ?? 'this client'
+    if (!confirm(`Delete ${name}? This removes their profile, invoices, campaigns and CRM pipeline card. This can't be undone.`)) {
+      return false
+    }
+    const result = await deleteClient(client.id)
+    if (result.error) {
+      alert(`Couldn't delete ${name}: ${result.error}`)
+      return false
+    }
+    return true
+  }
+}
+
 function ClientDetailDialog({
   client,
   open,
@@ -65,6 +82,7 @@ function ClientDetailDialog({
   const clientTasks = tasks.filter((t) => t.client_id === client?.id)
   const clientSlug = slugify(client?.company ?? client?.name ?? 'client')
   const profile = client ? getClientProfile(client.id) : null
+  const confirmDelete = useDeleteClient()
 
   useEffect(() => {
     if (open && window.gieo?.getStripeStatus) {
@@ -124,7 +142,20 @@ function ClientDetailDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>{client.company ?? client.name}</DialogTitle>
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle>{client.company ?? client.name}</DialogTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+              onClick={async () => {
+                if (await confirmDelete(client)) onClose()
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete client
+            </Button>
+          </div>
           <DialogDescription className="flex flex-wrap items-center gap-2">
             <span>MRR {formatCurrency(client.mrr)}</span>
             <Badge variant={statusVariant(client.status)} className="capitalize">{client.status}</Badge>
@@ -361,6 +392,7 @@ export function Clients(): JSX.Element {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const confirmDelete = useDeleteClient()
 
   const portalLabel = BUSINESSES.find((b) => b.id === portal)?.label ?? 'GIEO'
   const portalMrr = clients
@@ -400,6 +432,7 @@ export function Clients(): JSX.Element {
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider hidden md:table-cell">Hours</th>
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider hidden lg:table-cell">Next bill</th>
                 <th className="text-left py-3 px-4 font-medium text-zinc-500 text-xs uppercase tracking-wider">Status</th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
@@ -410,7 +443,7 @@ export function Clients(): JSX.Element {
                   <tr
                     key={client.id}
                     onClick={() => openClient(client)}
-                    className="border-b border-zinc-800/50 hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                    className="group border-b border-zinc-800/50 hover:bg-zinc-800/40 cursor-pointer transition-colors"
                   >
                     <td className="py-3 px-4">
                       <div>
@@ -455,6 +488,19 @@ export function Clients(): JSX.Element {
                     </td>
                     <td className="py-3 px-4">
                       <Badge variant={statusVariant(client.status)} className="capitalize">{client.status}</Badge>
+                    </td>
+                    <td className="py-3 pr-3 text-right">
+                      <button
+                        type="button"
+                        title="Delete client"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void confirmDelete(client)
+                        }}
+                        className="text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 )

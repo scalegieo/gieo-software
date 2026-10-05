@@ -17,7 +17,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Building2, DollarSign, CheckCircle2, Circle } from 'lucide-react'
+import { GripVertical, Building2, DollarSign, CheckCircle2, Circle, Trash2, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -27,6 +27,22 @@ import { LEAD_STAGES, type Lead, type LeadStage, formatCurrency } from '@/lib/ty
 import { cn } from '@/lib/utils'
 
 function LeadCard({ lead, isOverlay = false }: { lead: Lead; isOverlay?: boolean }): JSX.Element {
+  const linkedClient = useStore((s) => s.clients.find((c) => c.lead_id === lead.id))
+  const deletePipelineLead = useStore((s) => s.deletePipelineLead)
+  const deleteClient = useStore((s) => s.deleteClient)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (): Promise<void> => {
+    const message = linkedClient
+      ? `${lead.company} is an active client. Deleting this card also deletes the client, along with their profile, invoices and campaigns. Continue?`
+      : `Remove ${lead.company} from the pipeline?`
+    if (!confirm(message)) return
+    setDeleting(true)
+    const result = linkedClient ? await deleteClient(linkedClient.id) : await deletePipelineLead(lead.id)
+    setDeleting(false)
+    if (result.error) alert(`Couldn't delete: ${result.error}`)
+  }
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: lead.id,
     data: { type: 'lead', lead }
@@ -43,7 +59,7 @@ function LeadCard({ lead, isOverlay = false }: { lead: Lead; isOverlay?: boolean
       ref={setNodeRef}
       style={style}
       className={cn(
-        'rounded-md border border-zinc-800 bg-zinc-950 p-3 cursor-grab active:cursor-grabbing',
+        'group rounded-md border border-zinc-800 bg-zinc-950 p-3 cursor-grab active:cursor-grabbing',
         isOverlay && 'shadow-xl ring-1 ring-zinc-500/40 rotate-1',
         isDragging && !isOverlay && 'opacity-40'
       )}
@@ -67,6 +83,19 @@ function LeadCard({ lead, isOverlay = false }: { lead: Lead; isOverlay?: boolean
       <div className="mt-2 flex items-center gap-1 text-xs text-zinc-300">
         <DollarSign className="h-3 w-3" />
         {formatCurrency(lead.value)}
+        {linkedClient && <span className="ml-1 text-[10px] text-emerald-400">Client</span>}
+        {!isOverlay && (
+          <button
+            type="button"
+            title={linkedClient ? 'Delete client' : 'Remove from pipeline'}
+            disabled={deleting}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => void handleDelete()}
+            className="ml-auto text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity disabled:opacity-50"
+          >
+            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          </button>
+        )}
       </div>
     </div>
   )

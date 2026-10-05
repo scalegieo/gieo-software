@@ -82,6 +82,8 @@ interface GieoStore {
     stage?: LeadStage
   }) => Promise<string | null>
   syncClientsToPipeline: () => Promise<void>
+  deletePipelineLead: (leadId: string) => Promise<{ error?: string }>
+  deleteClient: (clientId: string) => Promise<{ error?: string }>
 
   fetchClients: () => Promise<void>
   fetchCampaigns: () => Promise<void>
@@ -433,6 +435,60 @@ export const useStore = create<GieoStore>((set, get) => ({
       }
       set({ clients: get().clients.map((c) => (c.id === client.id ? { ...c, lead_id: leadId } : c)) })
     }
+  },
+
+  deletePipelineLead: async (leadId) => {
+    const prev = get().leads
+    const lead = prev.find((l) => l.id === leadId)
+    if (!lead) return {}
+    set({ leads: prev.filter((l) => l.id !== leadId) })
+    const { error } = await supabase.from('leads').delete().eq('id', leadId)
+    if (error) {
+      set({ leads: prev })
+      return { error: error.message }
+    }
+    set({ clients: get().clients.map((c) => (c.lead_id === leadId ? { ...c, lead_id: null } : c)) })
+    get().postSystemMessage(`${get().profile?.name ?? 'Someone'} removed ${lead.company} from the CRM pipeline`)
+    return {}
+  },
+
+  // Also removes the client's pipeline card; otherwise syncClientsToPipeline would recreate it.
+  deleteClient: async (clientId) => {
+    const state = get()
+    const client = state.clients.find((c) => c.id === clientId)
+    if (!client) return {}
+    const snapshot = {
+      clients: state.clients,
+      leads: state.leads,
+      campaigns: state.campaigns,
+      financials: state.financials,
+      tasks: state.tasks,
+      clientProfiles: state.clientProfiles
+    }
+    const leadId = client.lead_id
+    const { [clientId]: _removed, ...remainingProfiles } = state.clientProfiles
+    set({
+      clients: state.clients.filter((c) => c.id !== clientId),
+      leads: leadId ? state.leads.filter((l) => l.id !== leadId) : state.leads,
+      campaigns: state.campaigns.filter((c) => c.client_id !== clientId),
+      financials: state.financials.filter((f) => f.client_id !== clientId),
+      tasks: state.tasks.map((t) => (t.client_id === clientId ? { ...t, client_id: null } : t)),
+      clientProfiles: remainingProfiles,
+      activeClientId: state.activeClientId === clientId ? null : state.activeClientId
+    })
+
+    const { error } = await supabase.from('clients').delete().eq('id', clientId)
+    if (error) {
+      set(snapshot)
+      return { error: error.message }
+    }
+    saveClientProfiles(remainingProfiles)
+    if (leadId) {
+      const { error: leadError } = await supabase.from('leads').delete().eq('id', leadId)
+      if (leadError) console.error('[GIEO] deleteClient pipeline card:', leadError.message)
+    }
+    get().postSystemMessage(`${state.profile?.name ?? 'Someone'} deleted client ${client.company ?? client.name ?? ''}`.trim())
+    return {}
   },
 
   fetchClients: async () => {
