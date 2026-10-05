@@ -3,8 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useStore } from '@/store/useStore'
 import { parseLeadSheetCsv } from '@/lib/googleSheet'
-import type { BusinessId } from '@/lib/types'
+import type { BusinessId, LeadStage } from '@/lib/types'
 import {
+  estimatedDealCents,
+  pipelineLeadIds,
   leadToAiInput,
   profilePayload,
   LEAD_PROFILES,
@@ -24,6 +26,12 @@ import { scriptToText, emailToText } from '@/lib/leadIntel'
 
 const db = supabase as unknown as SupabaseClient
 const SETTINGS_KEY = 'gieo_lead_intel_settings'
+const PIPELINE_STAGE_FOR_STATUS: Partial<Record<IntelLeadStatus, LeadStage>> = {
+  contacted: 'contacted',
+  interested: 'meeting',
+  converted: 'won',
+  dead: 'lost'
+}
 const MIGRATION_HINT = 'Lead Intelligence tables are missing — run supabase/migration-v9.sql in Supabase.'
 
 export interface LeadIntelSettings {
@@ -108,6 +116,7 @@ interface LeadIntelState {
   ) => Promise<{ error?: string }>
   fetchScripts: (leadId: string) => Promise<void>
   convertToClient: (id: string, mrrCents: number) => Promise<{ error?: string }>
+  addToPipeline: (ids: string[]) => Promise<{ added: number; error?: string }>
   updateSettings: (patch: Partial<LeadIntelSettings>) => void
 }
 
@@ -699,10 +708,45 @@ export const useLeadIntelStore = create<LeadIntelState>((set, get) => ({
       email: lead.email ?? undefined,
       phone: lead.phone ?? undefined,
       services: lead.ai_services_needed.filter((s) => s.priority === 'high').map((s) => s.name),
-      business: lead.business
+      business: lead.business,
+      leadId:
+        useStore
+          .getState()
+          .leads.find(
+            (l) =>
+              l.id === lead.id ||
+              ((l.business ?? 'gieo') === lead.business &&
+                l.company.trim().toLowerCase() === lead.business_name.trim().toLowerCase())
+          )?.id ?? lead.id
     })
     if (result.error) return { error: result.error }
     return get().updateLead(id, { status: 'converted' })
+  },
+
+  // The pipeline lead reuses the intel lead's id, so adding the same lead twice is a no-op.
+  addToPipeline: async (ids) => {
+    const app = useStore.getState()
+    const existing = pipelineLeadIds(get().leads, app.leads)
+    const toAdd = get().leads.filter((l) => ids.includes(l.id) && !existing.has(l.id))
+    let added = 0
+    for (const lead of toAdd) {
+      const id = await app.addPipelineLead({
+        id: lead.id,
+        name: lead.contact_name || lead.business_name,
+        company: lead.business_name,
+        mrr: estimatedDealCents(lead),
+        business: lead.business,
+        stage: PIPELINE_STAGE_FOR_STATUS[lead.status] ?? 'new'
+      })
+      if (id) added++
+    }
+    if (added > 0) {
+      const actor = app.profile?.name ?? 'Someone'
+      const label = added === 1 ? toAdd[0].business_name : `${added} leads`
+      app.postSystemMessage(`${actor} added ${label} to the CRM pipeline`)
+    }
+    if (added < toAdd.length) return { added, error: "Some leads couldn't be added to the pipeline. Check your connection." }
+    return { added }
   },
 
   updateSettings: (patch) => {

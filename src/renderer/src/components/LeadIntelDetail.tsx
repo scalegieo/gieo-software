@@ -24,8 +24,11 @@ import {
   TrendingDown,
   Target,
   Wand2,
-  ChevronDown
+  ChevronDown,
+  KanbanSquare
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useStore } from '@/store/useStore'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +41,7 @@ import {
   INTEL_STATUSES,
   LEAD_PROFILES,
   SOURCE_LABELS,
+  pipelineLeadIds,
   scoreGrade,
   type IntelLead,
   type IntelLeadStatus,
@@ -131,9 +135,21 @@ function AiButton({
 }
 
 export function LeadIntelDetail({ leadId, onClose }: { leadId: string; onClose: () => void }): JSX.Element | null {
-  const { leads, updateLead, analyzeLead, reverifyLead, analyzingIds, deleteLeads, convertToClient, scripts, fetchScripts } =
-    useLeadIntelStore()
+  const {
+    leads,
+    updateLead,
+    analyzeLead,
+    reverifyLead,
+    analyzingIds,
+    deleteLeads,
+    convertToClient,
+    addToPipeline,
+    scripts,
+    fetchScripts
+  } = useLeadIntelStore()
   const lead = leads.find((l) => l.id === leadId)
+  const inPipeline = useStore((s) => (lead ? pipelineLeadIds([lead], s.leads).has(lead.id) : false))
+  const [addingToPipeline, setAddingToPipeline] = useState(false)
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Partial<IntelLead>>({})
@@ -254,6 +270,28 @@ export function LeadIntelDetail({ leadId, onClose }: { leadId: string; onClose: 
             Generate Call Script
           </Button>
           <div className="ml-auto flex gap-2">
+            {inPipeline ? (
+              <Button asChild size="sm" variant="outline" className="h-7 gap-1.5 text-xs border-emerald-500/40 text-emerald-300">
+                <Link to="/crm">
+                  <Check className="h-3 w-3" />
+                  In pipeline
+                </Link>
+              </Button>
+            ) : (
+              <AiButton
+                busy={addingToPipeline}
+                variant="outline"
+                icon={KanbanSquare}
+                onClick={async () => {
+                  setAddingToPipeline(true)
+                  const result = await addToPipeline([lead.id])
+                  setAddingToPipeline(false)
+                  setAiError(result.error ?? null)
+                }}
+              >
+                Add to Pipeline
+              </AiButton>
+            )}
             {lead.status !== 'converted' && (
               <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setConvertOpen(true)}>
                 <UserPlus className="h-3 w-3" />

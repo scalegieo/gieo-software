@@ -73,12 +73,13 @@ interface GieoStore {
   fetchLeads: () => Promise<void>
   updateLeadStage: (leadId: string, stage: LeadStage) => Promise<void>
   toggleOnboardingItem: (leadId: string, itemId: string) => void
-  createPipelineLeadForClient: (input: {
+  addPipelineLead: (input: {
     id: string
     name?: string
     company?: string
     mrr: number
     business: BusinessId
+    stage?: LeadStage
   }) => Promise<string | null>
   syncClientsToPipeline: () => Promise<void>
 
@@ -111,6 +112,7 @@ interface GieoStore {
     phone?: string
     services?: string[]
     business?: BusinessId
+    leadId?: string
   }) => Promise<{ error?: string; clientId?: string }>
   getClientProfile: (clientId: string) => ClientProfile
   updateClientProfile: (clientId: string, profile: ClientProfile) => void
@@ -377,13 +379,14 @@ export const useStore = create<GieoStore>((set, get) => ({
     })
   },
 
-  createPipelineLeadForClient: async (input) => {
+  addPipelineLead: async (input) => {
     const company = input.company?.trim() || input.name?.trim() || 'New client'
+    const stage = input.stage ?? 'won'
     const row = {
       id: input.id,
       name: input.name?.trim() || company,
       company,
-      stage: 'won' as LeadStage,
+      stage,
       value: input.mrr,
       business: input.business
     }
@@ -391,17 +394,17 @@ export const useStore = create<GieoStore>((set, get) => ({
       .from('leads')
       .upsert(row as never, { onConflict: 'id', ignoreDuplicates: true })
     if (error) {
-      console.error('[GIEO] createPipelineLeadForClient:', error.message)
+      console.error('[GIEO] addPipelineLead:', error.message)
       return null
     }
     if (!get().leads.some((l) => l.id === row.id)) {
       const lead: Lead = {
         ...row,
         created_at: new Date().toISOString(),
-        onboarding_checklist: DEFAULT_ONBOARDING.map((item, i) => ({
-          ...item,
-          id: `ob-${row.id}-${i}`
-        }))
+        onboarding_checklist:
+          stage === 'won'
+            ? DEFAULT_ONBOARDING.map((item, i) => ({ ...item, id: `ob-${row.id}-${i}` }))
+            : undefined
       }
       set({ leads: [lead, ...get().leads] })
     }
@@ -415,7 +418,7 @@ export const useStore = create<GieoStore>((set, get) => ({
     const leadIds = new Set(get().leads.map((l) => l.id))
     const orphans = get().clients.filter((c) => !c.lead_id || !leadIds.has(c.lead_id))
     for (const client of orphans) {
-      const leadId = await get().createPipelineLeadForClient({
+      const leadId = await get().addPipelineLead({
         id: client.id,
         name: client.name,
         company: client.company,
@@ -567,13 +570,22 @@ export const useStore = create<GieoStore>((set, get) => ({
   addClient: async (input) => {
     const clientId = crypto.randomUUID()
     const business = input.business ?? get().activeBusiness
-    const leadId = await get().createPipelineLeadForClient({
-      id: crypto.randomUUID(),
-      name: input.name,
-      company: input.company,
-      mrr: input.mrr,
-      business
-    })
+    const existingLead = input.leadId ? get().leads.find((l) => l.id === input.leadId) : undefined
+    let leadId: string | null
+    if (existingLead) {
+      leadId = existingLead.id
+      if (existingLead.stage !== 'won') await get().updateLeadStage(existingLead.id, 'won')
+      set({ leads: get().leads.map((l) => (l.id === existingLead.id ? { ...l, value: input.mrr } : l)) })
+      void supabase.from('leads').update({ value: input.mrr } as never).eq('id', existingLead.id)
+    } else {
+      leadId = await get().addPipelineLead({
+        id: input.leadId ?? crypto.randomUUID(),
+        name: input.name,
+        company: input.company,
+        mrr: input.mrr,
+        business
+      })
+    }
     const newClient: Client = {
       id: clientId,
       lead_id: leadId,
@@ -609,7 +621,7 @@ export const useStore = create<GieoStore>((set, get) => ({
       business
     })
     if (error) {
-      if (leadId) {
+      if (leadId && !existingLead) {
         set({ leads: get().leads.filter((l) => l.id !== leadId) })
         void supabase.from('leads').delete().eq('id', leadId)
       }

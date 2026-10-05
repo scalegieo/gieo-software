@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Search, Download, Trash2, Sparkles, Phone, Mail, ShieldCheck, ShieldAlert, Shield, Users, Loader2 } from 'lucide-react'
+import { Search, Download, Trash2, Sparkles, Phone, Mail, ShieldCheck, ShieldAlert, Shield, Users, Loader2, KanbanSquare } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useStore } from '@/store/useStore'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +13,7 @@ import {
   INTEL_STATUSES,
   SOURCE_LABELS,
   leadsToCsv,
+  pipelineLeadIds,
   verificationState,
   type IntelLead,
   type IntelLeadStatus,
@@ -50,7 +53,11 @@ export function LeadIntelList({
   onOpen: (id: string) => void
   onAnalyze: (ids: string[]) => void
 }): JSX.Element {
-  const { bulkUpdateStatus, deleteLeads, loading, analyzingIds, batch } = useLeadIntelStore()
+  const { bulkUpdateStatus, deleteLeads, addToPipeline, loading, analyzingIds, batch } = useLeadIntelStore()
+  const appLeads = useStore((s) => s.leads)
+  const pipelineIds = useMemo(() => pipelineLeadIds(leads, appLeads), [leads, appLeads])
+  const [addingToPipeline, setAddingToPipeline] = useState(false)
+  const [pipelineNote, setPipelineNote] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<IntelLeadStatus | 'all'>('all')
   const [source, setSource] = useState<ScrapeSource | 'all'>('all')
@@ -151,6 +158,22 @@ export function LeadIntelList({
               <Sparkles className="h-3 w-3" />
               Run AI
             </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 gap-1 text-xs"
+              disabled={addingToPipeline || selectedIds.every((id) => pipelineIds.has(id))}
+              onClick={async () => {
+                setAddingToPipeline(true)
+                setPipelineNote(null)
+                const result = await addToPipeline(selectedIds)
+                setAddingToPipeline(false)
+                setPipelineNote(result.error ?? `Added ${result.added} to the CRM pipeline`)
+              }}
+            >
+              {addingToPipeline ? <Loader2 className="h-3 w-3 animate-spin" /> : <KanbanSquare className="h-3 w-3" />}
+              Add to Pipeline
+            </Button>
             <NativeSelect
               value=""
               onChange={(e) => {
@@ -179,6 +202,13 @@ export function LeadIntelList({
               Clear
             </button>
           </div>
+        )}
+        {pipelineNote && (
+          <p className="text-[11px] text-emerald-300 flex items-center gap-1.5">
+            <KanbanSquare className="h-3 w-3" />
+            {pipelineNote}
+            <Link to="/crm" className="underline text-emerald-200 hover:text-white">Open pipeline</Link>
+          </p>
         )}
       </div>
 
@@ -232,7 +262,14 @@ export function LeadIntelList({
                       <div className="flex items-center gap-2">
                         <VerificationIcon lead={lead} />
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{lead.business_name}</p>
+                          <p className="font-medium truncate flex items-center gap-1.5">
+                            {lead.business_name}
+                            {pipelineIds.has(lead.id) && (
+                              <span title="In CRM pipeline">
+                                <KanbanSquare className="h-3 w-3 text-emerald-400 shrink-0" />
+                              </span>
+                            )}
+                          </p>
                           <p className="text-[11px] text-zinc-500 truncate">
                             {[lead.industry || lead.category, lead.city].filter(Boolean).join(' · ') || '—'}
                           </p>

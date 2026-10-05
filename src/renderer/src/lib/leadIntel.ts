@@ -319,6 +319,32 @@ export function profilePayload(business: BusinessId): {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Intel lead ids that already have a CRM pipeline card, matched by id or by company within the same business. */
+export function pipelineLeadIds(
+  intel: Pick<IntelLead, 'id' | 'business_name' | 'business'>[],
+  pipeline: { id: string; company: string; business?: BusinessId }[]
+): Set<string> {
+  const ids = new Set(pipeline.map((l) => l.id))
+  const companies = new Set(pipeline.map((l) => `${l.business ?? 'gieo'}:${l.company.trim().toLowerCase()}`))
+  return new Set(
+    intel
+      .filter((l) => ids.has(l.id) || companies.has(`${l.business}:${l.business_name.trim().toLowerCase()}`))
+      .map((l) => l.id)
+  )
+}
+
+/** Low end of each high/medium-priority service estimate ("$1,500-$3,000/mo" → 1500), in cents. */
+export function estimatedDealCents(lead: Pick<IntelLead, 'ai_services_needed'>): number {
+  const services = lead.ai_services_needed.filter((s) => s.priority !== 'low')
+  const dollars = services.reduce((sum, s) => {
+    const match = s.estimatedValue?.match(/\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?/i)
+    if (!match) return sum
+    const n = parseFloat(match[1].replace(/,/g, '')) * (match[2] ? 1000 : 1)
+    return Number.isFinite(n) ? sum + n : sum
+  }, 0)
+  return Math.round(dollars * 100)
+}
+
 export function scoreGrade(score: number | null | undefined): 'A' | 'B' | 'C' | 'D' | 'F' | '—' {
   if (score == null) return '—'
   if (score >= 85) return 'A'
