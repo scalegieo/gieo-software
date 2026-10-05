@@ -73,6 +73,14 @@ interface GieoStore {
   fetchLeads: () => Promise<void>
   updateLeadStage: (leadId: string, stage: LeadStage) => Promise<void>
   toggleOnboardingItem: (leadId: string, itemId: string) => void
+  createPipelineLeadForClient: (input: {
+    id: string
+    name?: string
+    company?: string
+    mrr: number
+    business: BusinessId
+  }) => Promise<string | null>
+  syncClientsToPipeline: () => Promise<void>
 
   fetchClients: () => Promise<void>
   fetchCampaigns: () => Promise<void>
@@ -305,6 +313,8 @@ export const useStore = create<GieoStore>((set, get) => ({
       get().fetchWhiteboard()
     ])
 
+    await get().syncClientsToPipeline()
+
     const state = get()
     const mergedProfiles = await syncClientProfilesFromRemote(state.clients)
     set({ clientProfiles: mergedProfiles })
@@ -365,6 +375,61 @@ export const useStore = create<GieoStore>((set, get) => ({
         }
       })
     })
+  },
+
+  createPipelineLeadForClient: async (input) => {
+    const company = input.company?.trim() || input.name?.trim() || 'New client'
+    const row = {
+      id: input.id,
+      name: input.name?.trim() || company,
+      company,
+      stage: 'won' as LeadStage,
+      value: input.mrr,
+      business: input.business
+    }
+    const { error } = await supabase
+      .from('leads')
+      .upsert(row as never, { onConflict: 'id', ignoreDuplicates: true })
+    if (error) {
+      console.error('[GIEO] createPipelineLeadForClient:', error.message)
+      return null
+    }
+    if (!get().leads.some((l) => l.id === row.id)) {
+      const lead: Lead = {
+        ...row,
+        created_at: new Date().toISOString(),
+        onboarding_checklist: DEFAULT_ONBOARDING.map((item, i) => ({
+          ...item,
+          id: `ob-${row.id}-${i}`
+        }))
+      }
+      set({ leads: [lead, ...get().leads] })
+    }
+    return row.id
+  },
+
+  // Clients created before pipeline sync have no lead; reuse the client id as the lead id so
+  // concurrent sessions converge on one row instead of duplicating it.
+  syncClientsToPipeline: async () => {
+    if (get().connectionError) return
+    const leadIds = new Set(get().leads.map((l) => l.id))
+    const orphans = get().clients.filter((c) => !c.lead_id || !leadIds.has(c.lead_id))
+    for (const client of orphans) {
+      const leadId = await get().createPipelineLeadForClient({
+        id: client.id,
+        name: client.name,
+        company: client.company,
+        mrr: client.mrr,
+        business: clientBusiness(client)
+      })
+      if (!leadId || client.lead_id === leadId) continue
+      const { error } = await supabase.from('clients').update({ lead_id: leadId } as never).eq('id', client.id)
+      if (error) {
+        console.error('[GIEO] syncClientsToPipeline:', error.message)
+        continue
+      }
+      set({ clients: get().clients.map((c) => (c.id === client.id ? { ...c, lead_id: leadId } : c)) })
+    }
   },
 
   fetchClients: async () => {
@@ -502,9 +567,16 @@ export const useStore = create<GieoStore>((set, get) => ({
   addClient: async (input) => {
     const clientId = crypto.randomUUID()
     const business = input.business ?? get().activeBusiness
+    const leadId = await get().createPipelineLeadForClient({
+      id: crypto.randomUUID(),
+      name: input.name,
+      company: input.company,
+      mrr: input.mrr,
+      business
+    })
     const newClient: Client = {
       id: clientId,
-      lead_id: null,
+      lead_id: leadId,
       mrr: input.mrr,
       status: 'active',
       name: input.name,
@@ -529,7 +601,7 @@ export const useStore = create<GieoStore>((set, get) => ({
 
     const { error } = await supabase.from('clients').insert({
       id: clientId,
-      lead_id: null,
+      lead_id: leadId,
       mrr: input.mrr,
       status: 'active',
       name: input.name,
@@ -537,6 +609,10 @@ export const useStore = create<GieoStore>((set, get) => ({
       business
     })
     if (error) {
+      if (leadId) {
+        set({ leads: get().leads.filter((l) => l.id !== leadId) })
+        void supabase.from('leads').delete().eq('id', leadId)
+      }
       set({
         clients: get().clients.filter((c) => c.id !== clientId),
         clientProfiles: Object.fromEntries(
