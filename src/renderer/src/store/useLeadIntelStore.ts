@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useStore } from '@/store/useStore'
 import { parseLeadSheetCsv } from '@/lib/googleSheet'
-import type { BusinessId, LeadStage } from '@/lib/types'
+import type { BusinessId } from '@/lib/types'
 import {
   estimatedDealCents,
   pipelineLeadIds,
@@ -26,12 +26,6 @@ import { scriptToText, emailToText } from '@/lib/leadIntel'
 
 const db = supabase as unknown as SupabaseClient
 const SETTINGS_KEY = 'gieo_lead_intel_settings'
-const PIPELINE_STAGE_FOR_STATUS: Partial<Record<IntelLeadStatus, LeadStage>> = {
-  contacted: 'contacted',
-  interested: 'meeting',
-  converted: 'won',
-  dead: 'lost'
-}
 const MIGRATION_HINT = 'Lead Intelligence tables are missing — run supabase/migration-v9.sql in Supabase.'
 
 export interface LeadIntelSettings {
@@ -735,8 +729,7 @@ export const useLeadIntelStore = create<LeadIntelState>((set, get) => ({
         name: lead.contact_name || lead.business_name,
         company: lead.business_name,
         mrr: estimatedDealCents(lead),
-        business: lead.business,
-        stage: PIPELINE_STAGE_FOR_STATUS[lead.status] ?? 'new'
+        business: lead.business
       })
       if (id) added++
     }

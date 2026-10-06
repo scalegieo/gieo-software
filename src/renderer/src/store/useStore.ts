@@ -383,7 +383,7 @@ export const useStore = create<GieoStore>((set, get) => ({
 
   addPipelineLead: async (input) => {
     const company = input.company?.trim() || input.name?.trim() || 'New client'
-    const stage = input.stage ?? 'won'
+    const stage = input.stage ?? 'new'
     const row = {
       id: input.id,
       name: input.name?.trim() || company,
@@ -630,7 +630,6 @@ export const useStore = create<GieoStore>((set, get) => ({
     let leadId: string | null
     if (existingLead) {
       leadId = existingLead.id
-      if (existingLead.stage !== 'won') await get().updateLeadStage(existingLead.id, 'won')
       set({ leads: get().leads.map((l) => (l.id === existingLead.id ? { ...l, value: input.mrr } : l)) })
       void supabase.from('leads').update({ value: input.mrr } as never).eq('id', existingLead.id)
     } else {
