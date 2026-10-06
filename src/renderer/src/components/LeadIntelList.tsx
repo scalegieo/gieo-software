@@ -93,6 +93,7 @@ export function LeadIntelList({
 
   const selectedIds = [...selected].filter((id) => filtered.some((l) => l.id === id))
   const allSelected = filtered.length > 0 && selectedIds.length === filtered.length
+  const notInPipeline = filtered.filter((l) => !pipelineIds.has(l.id))
 
   const toggle = (id: string): void => {
     const next = new Set(selected)
@@ -145,6 +146,23 @@ export function LeadIntelList({
             <option value="score">Highest AI score</option>
             <option value="name">Business name</option>
           </NativeSelect>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={addingToPipeline || notInPipeline.length === 0}
+            onClick={async () => {
+              if (notInPipeline.length > 5 && !confirm(`Add ${notInPipeline.length} leads to the New column on the CRM pipeline?`)) return
+              setAddingToPipeline(true)
+              setPipelineNote(null)
+              const result = await addToPipeline(notInPipeline.map((l) => l.id))
+              setAddingToPipeline(false)
+              setPipelineNote(result.error ?? `Added ${result.added} to the CRM pipeline`)
+            }}
+          >
+            {addingToPipeline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KanbanSquare className="h-3.5 w-3.5" />}
+            Add all to Pipeline{notInPipeline.length ? ` (${notInPipeline.length})` : ''}
+          </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCsv} disabled={!filtered.length}>
             <Download className="h-3.5 w-3.5" />
             Export CSV{selectedIds.length ? ` (${selectedIds.length})` : ''}

@@ -1,6 +1,6 @@
 {
   "name": "gieo-app",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "GIEO - Internal Agency CRM Desktop Application",
   "main": "./out/main/index.js",
   "author": "GIEO",
